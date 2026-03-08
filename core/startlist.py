@@ -355,7 +355,7 @@ class StartlistParser:
                 continue
 
             riders = []
-            for rider_link in team_li.select('ul > li a[href*="/rider/"]'):
+            for rider_link in team_li.select('ul > li a[href*="rider/"]'):
                 raw = rider_link.get_text(strip=True)
                 if not raw:
                     continue
@@ -636,3 +636,36 @@ def apply_multiplayer_startlist(db_path, team_ids, rider_ids):
         conn.commit()
 
     return working, moved, contracts_removed
+
+
+# ===========================================================================
+# URL fetching (cloudscraper for Cloudflare bypass)
+# ===========================================================================
+
+def fetch_startlist_url(url):
+    """Fetch an HTML startlist page from a URL.
+
+    Uses cloudscraper to bypass Cloudflare anti-bot protection on sites
+    like ProCyclingStats and FirstCycling.
+
+    Args:
+        url: The URL to fetch.
+
+    Returns:
+        Path to a temporary HTML file containing the fetched content.
+
+    Raises:
+        ImportError: If cloudscraper is not installed.
+        Exception: If the HTTP request fails.
+    """
+    import cloudscraper
+
+    scraper = cloudscraper.create_scraper()
+    response = scraper.get(url, timeout=30)
+    response.raise_for_status()
+
+    out_path = os.path.join(tempfile.gettempdir(), "pcm_fetched_startlist.html")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(response.text)
+
+    return out_path

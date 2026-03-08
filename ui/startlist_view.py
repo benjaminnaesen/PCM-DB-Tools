@@ -13,13 +13,18 @@ Two tabs:
 
 import gc
 import os
-import tkinter as tk
-from tkinter import END, filedialog, messagebox, scrolledtext, ttk
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QApplication, QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel,
+    QLineEdit, QMessageBox, QProgressBar, QPushButton, QTabWidget,
+    QTextEdit, QVBoxLayout, QWidget,
+)
 
 import core.converter as converter
 from core.startlist import (
     StartlistDatabase, StartlistParser, PCMXmlWriter,
-    apply_multiplayer_startlist,
+    apply_multiplayer_startlist, fetch_startlist_url,
 )
 from ui.ui_utils import run_async
 
@@ -31,19 +36,13 @@ DATABASES_DIR = os.path.join(
 )
 
 
-class StartlistView:
+class StartlistView(QWidget):
     """Full-frame startlist generator with database selector."""
 
-    def __init__(self, parent_frame, root, go_home):
-        """
-        Args:
-            parent_frame: tk.Frame to build the view inside
-            root: The tk.Tk root window (for dialogs / update_idletasks)
-            go_home: Callback to return to the home screen
-        """
-        self.frame = parent_frame
-        self.root = root
-        self.go_home = go_home
+    go_home = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.parser = StartlistParser()
         self.writer = PCMXmlWriter()
         self.db = None
@@ -56,48 +55,51 @@ class StartlistView:
         self._build_ui()
         self._load_selected_db()
 
+    # ==================================================================
+    # UI construction
+    # ==================================================================
+
     def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
         # Toolbar
-        toolbar = tk.Frame(self.frame, pady=10, bg="#f0f0f0")
-        toolbar.pack(side=tk.TOP, fill=tk.X)
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(8, 8, 8, 8)
+        back_btn = QPushButton("\u2190 Back")
+        back_btn.setStyleSheet("background: #b0b0b0;")
+        back_btn.clicked.connect(self._on_home)
+        toolbar.addWidget(back_btn)
+        toolbar.addStretch()
+        outer.addLayout(toolbar)
 
-        tk.Button(
-            toolbar, text="\u2190 Back", command=self._on_home,
-            bg="#b0b0b0",
-        ).pack(side=tk.LEFT, padx=5)
-
-        # Shared content area
-        content = tk.Frame(self.frame, padx=16, pady=12)
-        content.pack(fill='both', expand=True)
-
-        # Notebook (tabs)
-        self.notebook = ttk.Notebook(content)
-        self.notebook.pack(fill='both', expand=True)
+        # Tabs
+        self.tabs = QTabWidget()
+        outer.addWidget(self.tabs, 1)
 
         self._build_singleplayer_tab()
         self._build_multiplayer_tab()
 
         # Status bar
-        self.status = tk.Label(
-            self.frame, text="Ready", bd=1, relief="sunken", anchor="w",
-        )
-        self.status.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status = QLabel("Ready")
+        self.status.setStyleSheet(
+            "padding: 4px; border-top: 1px solid #ccc; color: #555;")
+        outer.addWidget(self.status)
 
-    # -- Tab builders -------------------------------------------------------
+    # -- Singleplayer tab ----------------------------------------------
 
     def _build_singleplayer_tab(self):
-        tab = tk.Frame(self.notebook, padx=8, pady=8)
-        self.notebook.add(tab, text="Singleplayer")
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 8, 12, 8)
 
         # Database section
-        db_frame = tk.LabelFrame(tab, text="Database", padx=8, pady=8)
-        db_frame.pack(fill='x', pady=(0, 8))
-        db_row = tk.Frame(db_frame)
-        db_row.pack(fill='x')
+        db_group = QGroupBox("Database")
+        db_lay = QVBoxLayout(db_group)
+        db_row = QHBoxLayout()
+        db_row.addWidget(QLabel("Select database:"))
 
-        tk.Label(db_row, text="Select database:").pack(side='left')
-
-        # Scan databases/ folder for subfolders
         self._db_names = []
         if os.path.isdir(DATABASES_DIR):
             self._db_names = sorted(
@@ -105,162 +107,176 @@ class StartlistView:
                 if os.path.isdir(os.path.join(DATABASES_DIR, d))
             )
 
-        self.db_var = tk.StringVar()
-        self.db_combo = ttk.Combobox(
-            db_row, textvariable=self.db_var, values=self._db_names,
-            state='readonly', width=30,
-        )
-        self.db_combo.pack(side='left', padx=(6, 0))
-        self.db_combo.bind(
-            '<<ComboboxSelected>>', lambda e: self._load_selected_db())
+        self.db_combo = QComboBox()
+        self.db_combo.addItems(self._db_names)
+        self.db_combo.currentIndexChanged.connect(
+            lambda: self._load_selected_db())
+        db_row.addWidget(self.db_combo, 1)
 
-        if self._db_names:
-            self.db_combo.current(0)
+        db_row.addWidget(QLabel("or"))
+        cdb_btn = QPushButton("Open CDB\u2026")
+        cdb_btn.clicked.connect(self._load_cdb)
+        db_row.addWidget(cdb_btn)
+        db_lay.addLayout(db_row)
 
-        tk.Label(db_row, text="or").pack(side='left', padx=8)
-        tk.Button(
-            db_row, text="Open CDB...", command=self._load_cdb,
-        ).pack(side='left')
-
-        self.db_status = tk.Label(
-            db_frame, text="", fg="#888", font=("Segoe UI", 9), anchor='w',
-        )
-        self.db_status.pack(fill='x', pady=(4, 0))
+        self.db_status = QLabel("")
+        self.db_status.setStyleSheet("color: #888; font-size: 9pt;")
+        db_lay.addWidget(self.db_status)
+        layout.addWidget(db_group)
 
         # HTML file input
-        file_frame = tk.LabelFrame(tab, text="HTML startlist file",
-                                   padx=8, pady=8)
-        file_frame.pack(fill='x', pady=(0, 8))
-        row = tk.Frame(file_frame)
-        row.pack(fill='x')
+        file_group = QGroupBox("HTML startlist file")
+        file_lay = QVBoxLayout(file_group)
+        file_row = QHBoxLayout()
+        self.file_edit = QLineEdit()
+        file_row.addWidget(self.file_edit, 1)
+        browse_btn = QPushButton("Browse\u2026")
+        browse_btn.clicked.connect(self._browse_file)
+        file_row.addWidget(browse_btn)
+        file_lay.addLayout(file_row)
 
-        self.file_var = tk.StringVar()
-        tk.Entry(row, textvariable=self.file_var, width=60).pack(
-            side='left', fill='x', expand=True)
-        tk.Button(row, text="Browse...", command=self._browse_file).pack(
-            side='left', padx=(6, 0))
+        url_row = QHBoxLayout()
+        url_row.addWidget(QLabel("or URL:"))
+        self.url_edit = QLineEdit()
+        url_row.addWidget(self.url_edit, 1)
+        fetch_btn = QPushButton("Fetch")
+        fetch_btn.clicked.connect(self._fetch_url)
+        url_row.addWidget(fetch_btn)
+        file_lay.addLayout(url_row)
+        layout.addWidget(file_group)
 
-        # Race selection (determines output filename)
-        race_frame = tk.LabelFrame(tab, text="Race", padx=8, pady=8)
-        race_frame.pack(fill='x', pady=(0, 8))
-        race_row = tk.Frame(race_frame)
-        race_row.pack(fill='x')
+        # Race selection
+        race_group = QGroupBox("Race")
+        race_lay = QVBoxLayout(race_group)
+        race_row = QHBoxLayout()
+        race_row.addWidget(QLabel("Select race:"))
+        self._race_map = {}
+        self.race_combo = QComboBox()
+        self.race_combo.currentIndexChanged.connect(self._on_race_selected)
+        race_row.addWidget(self.race_combo, 1)
+        race_lay.addLayout(race_row)
 
-        tk.Label(race_row, text="Select race:").pack(side='left')
-        self._race_map = {}        # display_name -> filename
-        self.race_combo = ttk.Combobox(race_row, state='readonly', width=50)
-        self.race_combo.pack(side='left', padx=(6, 0), fill='x', expand=True)
+        self.out_label = QLabel("")
+        self.out_label.setStyleSheet("color: #888; font-size: 9pt;")
+        race_lay.addWidget(self.out_label)
+        layout.addWidget(race_group)
 
-        self.out_var = tk.StringVar()
-        self.race_filename_label = tk.Label(
-            race_frame, textvariable=self.out_var,
-            fg="#888", font=("Segoe UI", 9), anchor='w',
-        )
-        self.race_filename_label.pack(fill='x', pady=(4, 0))
-        self.race_combo.bind(
-            '<<ComboboxSelected>>', self._on_race_selected)
-
-        # Convert button
-        btn_frame = tk.Frame(tab)
-        btn_frame.pack(fill='x', pady=(0, 8))
-        tk.Button(
-            btn_frame, text="Generate Startlist", command=self._convert,
-            bg="#2e8b57", fg="white",
-        ).pack(side='left')
+        # Generate button
+        gen_btn = QPushButton("Generate Startlist")
+        gen_btn.setStyleSheet(
+            "QPushButton { background: #2e8b57; color: white; padding: 6px 16px; }"
+            "QPushButton:hover { background: #267349; }")
+        gen_btn.clicked.connect(self._convert)
+        layout.addWidget(gen_btn)
 
         # Progress bar
-        self.progress_var = tk.DoubleVar()
-        ttk.Progressbar(
-            tab, variable=self.progress_var, maximum=100,
-        ).pack(fill='x', pady=(0, 4))
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        layout.addWidget(self.progress)
 
-        # Log area
-        tk.Label(tab, text="Log:", font=("Segoe UI", 9)).pack(anchor='w')
-        self.log_widget = scrolledtext.ScrolledText(
-            tab, height=14, state='disabled',
-            font=("Consolas", 9), bg="#1e1e1e", fg="#cccccc",
-        )
-        self.log_widget.pack(fill='both', expand=True, pady=(2, 0))
+        # Log
+        layout.addWidget(QLabel("Log:"))
+        self.log_widget = QTextEdit()
+        self.log_widget.setReadOnly(True)
+        self.log_widget.setStyleSheet(
+            "background: #1e1e1e; color: #cccccc;"
+            "font-family: Consolas; font-size: 9pt;")
+        layout.addWidget(self.log_widget, 1)
+
+        self.tabs.addTab(tab, "Singleplayer")
+
+    # -- Multiplayer tab -----------------------------------------------
 
     def _build_multiplayer_tab(self):
-        tab = tk.Frame(self.notebook, padx=8, pady=8)
-        self.notebook.add(tab, text="Multiplayer")
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 8, 12, 8)
 
         # CDB file input
-        cdb_frame = tk.LabelFrame(tab, text="CDB database file", padx=8, pady=8)
-        cdb_frame.pack(fill='x', pady=(0, 8))
-        cdb_row = tk.Frame(cdb_frame)
-        cdb_row.pack(fill='x')
+        cdb_group = QGroupBox("CDB database file")
+        cdb_lay = QVBoxLayout(cdb_group)
+        cdb_row = QHBoxLayout()
+        self.mp_cdb_edit = QLineEdit()
+        self.mp_cdb_edit.setReadOnly(True)
+        cdb_row.addWidget(self.mp_cdb_edit, 1)
+        load_btn = QPushButton("Load CDB\u2026")
+        load_btn.clicked.connect(self._mp_browse_cdb)
+        cdb_row.addWidget(load_btn)
+        cdb_lay.addLayout(cdb_row)
 
-        self.mp_cdb_var = tk.StringVar()
-        tk.Entry(cdb_row, textvariable=self.mp_cdb_var, width=60,
-                 state='readonly').pack(side='left', fill='x', expand=True)
-        tk.Button(cdb_row, text="Load CDB...",
-                  command=self._mp_browse_cdb).pack(side='left', padx=(6, 0))
-
-        self.mp_cdb_status = tk.Label(
-            cdb_frame, text="No CDB loaded", fg="#888",
-            font=("Segoe UI", 9), anchor='w',
-        )
-        self.mp_cdb_status.pack(fill='x', pady=(4, 0))
+        self.mp_cdb_status = QLabel("No CDB loaded")
+        self.mp_cdb_status.setStyleSheet("color: #888; font-size: 9pt;")
+        cdb_lay.addWidget(self.mp_cdb_status)
+        layout.addWidget(cdb_group)
 
         # HTML startlist input
-        html_frame = tk.LabelFrame(tab, text="HTML startlist file",
-                                   padx=8, pady=8)
-        html_frame.pack(fill='x', pady=(0, 8))
-        html_row = tk.Frame(html_frame)
-        html_row.pack(fill='x')
+        html_group = QGroupBox("HTML startlist file")
+        html_lay = QVBoxLayout(html_group)
+        html_row = QHBoxLayout()
+        self.mp_html_edit = QLineEdit()
+        html_row.addWidget(self.mp_html_edit, 1)
+        html_btn = QPushButton("Browse\u2026")
+        html_btn.clicked.connect(self._mp_browse_html)
+        html_row.addWidget(html_btn)
+        html_lay.addLayout(html_row)
 
-        self.mp_html_var = tk.StringVar()
-        tk.Entry(html_row, textvariable=self.mp_html_var, width=60).pack(
-            side='left', fill='x', expand=True)
-        tk.Button(html_row, text="Browse...",
-                  command=self._mp_browse_html).pack(side='left', padx=(6, 0))
+        mp_url_row = QHBoxLayout()
+        mp_url_row.addWidget(QLabel("or URL:"))
+        self.mp_url_edit = QLineEdit()
+        mp_url_row.addWidget(self.mp_url_edit, 1)
+        mp_fetch_btn = QPushButton("Fetch")
+        mp_fetch_btn.clicked.connect(self._mp_fetch_url)
+        mp_url_row.addWidget(mp_fetch_btn)
+        html_lay.addLayout(mp_url_row)
+        layout.addWidget(html_group)
 
         # Output CDB file
-        out_frame = tk.LabelFrame(tab, text="Output CDB file", padx=8, pady=8)
-        out_frame.pack(fill='x', pady=(0, 8))
-        out_row = tk.Frame(out_frame)
-        out_row.pack(fill='x')
-
-        self.mp_out_var = tk.StringVar()
-        tk.Entry(out_row, textvariable=self.mp_out_var, width=60).pack(
-            side='left', fill='x', expand=True)
-        tk.Button(out_row, text="Save as...",
-                  command=self._mp_browse_output).pack(side='left', padx=(6, 0))
+        out_group = QGroupBox("Output CDB file")
+        out_lay = QVBoxLayout(out_group)
+        out_row = QHBoxLayout()
+        self.mp_out_edit = QLineEdit()
+        out_row.addWidget(self.mp_out_edit, 1)
+        save_btn = QPushButton("Save as\u2026")
+        save_btn.clicked.connect(self._mp_browse_output)
+        out_row.addWidget(save_btn)
+        out_lay.addLayout(out_row)
+        layout.addWidget(out_group)
 
         # Process button
-        btn_frame = tk.Frame(tab)
-        btn_frame.pack(fill='x', pady=(0, 8))
-        tk.Button(
-            btn_frame, text="Generate CDB Startlist", command=self._mp_process,
-            bg="#2e8b57", fg="white",
-        ).pack(side='left')
+        proc_btn = QPushButton("Generate CDB Startlist")
+        proc_btn.setStyleSheet(
+            "QPushButton { background: #2e8b57; color: white; padding: 6px 16px; }"
+            "QPushButton:hover { background: #267349; }")
+        proc_btn.clicked.connect(self._mp_process)
+        layout.addWidget(proc_btn)
 
         # Progress bar
-        self.mp_progress_var = tk.DoubleVar()
-        ttk.Progressbar(
-            tab, variable=self.mp_progress_var, maximum=100,
-        ).pack(fill='x', pady=(0, 4))
+        self.mp_progress = QProgressBar()
+        self.mp_progress.setRange(0, 100)
+        self.mp_progress.setValue(0)
+        layout.addWidget(self.mp_progress)
 
-        # Log area
-        tk.Label(tab, text="Log:", font=("Segoe UI", 9)).pack(anchor='w')
-        self.mp_log_widget = scrolledtext.ScrolledText(
-            tab, height=14, state='disabled',
-            font=("Consolas", 9), bg="#1e1e1e", fg="#cccccc",
-        )
-        self.mp_log_widget.pack(fill='both', expand=True, pady=(2, 0))
+        # Log
+        layout.addWidget(QLabel("Log:"))
+        self.mp_log_widget = QTextEdit()
+        self.mp_log_widget.setReadOnly(True)
+        self.mp_log_widget.setStyleSheet(
+            "background: #1e1e1e; color: #cccccc;"
+            "font-family: Consolas; font-size: 9pt;")
+        layout.addWidget(self.mp_log_widget, 1)
 
-    # ======================================================================
+        self.tabs.addTab(tab, "Multiplayer")
+
+    # ==================================================================
     # Singleplayer: Database loading
-    # ======================================================================
+    # ==================================================================
 
     def _load_selected_db(self):
-        """Load database from the selected CSV folder."""
-        name = self.db_var.get()
+        name = self.db_combo.currentText()
         if not name:
             self.db = None
-            self.db_status.config(text="No database selected")
+            self.db_status.setText("No database selected")
             self._populate_races()
             return
 
@@ -271,18 +287,17 @@ class StartlistView:
         if self.db.loaded:
             msg = (f"Database '{name}' loaded: {len(self.db.teams)} teams, "
                    f"{len(self.db.cyclists)} cyclists")
-            self.db_status.config(text=msg, fg="#333")
+            self.db_status.setText(msg)
+            self.db_status.setStyleSheet("color: #333; font-size: 9pt;")
             self._log(msg)
         else:
-            self.db_status.config(
-                text=f"WARNING: '{name}' missing CSV files", fg="#c00")
+            self.db_status.setText(f"WARNING: '{name}' missing CSV files")
+            self.db_status.setStyleSheet("color: #c00; font-size: 9pt;")
             self._log(f"WARNING: Database '{name}' missing CSV files.")
 
     def _load_cdb(self):
-        """Load database from a CDB file (converted to SQLite)."""
-        path = filedialog.askopenfilename(
-            filetypes=[("CDB files", "*.cdb")],
-        )
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select CDB file", "", "CDB files (*.cdb)")
         if not path:
             return
 
@@ -293,63 +308,69 @@ class StartlistView:
         def on_success(temp_path):
             self.temp_path = temp_path
             self.db = StartlistDatabase.from_sqlite(temp_path)
-            # Clear dropdown selection to show CDB is active
-            self.db_combo.set('')
+            self.db_combo.setCurrentIndex(-1)
             self._populate_races()
             if self.db.loaded:
                 msg = (f"CDB loaded: {len(self.db.teams)} teams, "
                        f"{len(self.db.cyclists)} cyclists")
-                self.db_status.config(text=msg, fg="#333")
+                self.db_status.setText(msg)
+                self.db_status.setStyleSheet("color: #333; font-size: 9pt;")
                 self._log(msg)
-                self.status.config(text=f"Loaded: {path}")
+                self.status.setText(f"Loaded: {path}")
             else:
-                self.db_status.config(
-                    text="WARNING: DYN_team or DYN_cyclist tables missing",
-                    fg="#c00")
+                self.db_status.setText(
+                    "WARNING: DYN_team or DYN_cyclist tables missing")
+                self.db_status.setStyleSheet("color: #c00; font-size: 9pt;")
                 self._log("WARNING: DYN_team or DYN_cyclist tables missing. "
                           "ID matching unavailable.")
 
-        run_async(self.root, task, on_success, "Loading CDB...")
+        run_async(self, task, on_success, "Loading CDB\u2026")
 
-    # ======================================================================
+    # ==================================================================
     # Singleplayer: Logging helpers
-    # ======================================================================
+    # ==================================================================
 
     def _log(self, msg):
-        """Append a message to the singleplayer log widget."""
-        self.log_widget.config(state='normal')
-        self.log_widget.insert('end', msg + "\n")
-        self.log_widget.see('end')
-        self.log_widget.config(state='disabled')
-        self.root.update_idletasks()
+        self.log_widget.append(msg)
+        QApplication.processEvents()
 
     def _clear_log(self):
-        """Clear the singleplayer log and reset the progress bar."""
-        self.log_widget.config(state='normal')
-        self.log_widget.delete('1.0', 'end')
-        self.log_widget.config(state='disabled')
-        self.progress_var.set(0)
+        self.log_widget.clear()
+        self.progress.setValue(0)
 
     def _update_progress(self, current, total):
-        """Update the singleplayer progress bar percentage."""
-        self.progress_var.set((current / total) * 100 if total else 0)
-        self.root.update_idletasks()
+        self.progress.setValue(int((current / total) * 100) if total else 0)
+        QApplication.processEvents()
 
-    # ======================================================================
+    # ==================================================================
     # Singleplayer: File dialogs
-    # ======================================================================
+    # ==================================================================
 
     def _browse_file(self):
-        """Open a file dialog to select an HTML startlist file."""
-        path = filedialog.askopenfilename(
-            title="Select HTML startlist file",
-            filetypes=[("HTML files", "*.html *.htm"), ("All files", "*.*")],
-        )
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select HTML startlist file", "",
+            "HTML files (*.html *.htm);;All files (*.*)")
         if path:
-            self.file_var.set(path)
+            self.file_edit.setText(path)
+
+    def _fetch_url(self):
+        url = self.url_edit.text().strip()
+        if not url:
+            QMessageBox.warning(self, "No URL", "Please enter a URL first.")
+            return
+        self._log(f"Fetching: {url}")
+
+        def task():
+            return fetch_startlist_url(url)
+
+        def on_success(temp_path):
+            self.file_edit.setText(temp_path)
+            self._log(f"Fetched startlist from {url}")
+            self.status.setText(f"Fetched: {url}")
+
+        run_async(self, task, on_success, "Fetching startlist\u2026")
 
     def _populate_races(self):
-        """Fill the race dropdown from the current database."""
         self._race_map = {}
         if self.db and self.db.races:
             for r in self.db.races:
@@ -358,33 +379,52 @@ class StartlistView:
                 if name and filename:
                     self._race_map[name] = filename
 
-        names = sorted(self._race_map.keys())
-        self.race_combo['values'] = names
-        self.race_combo.set('')
-        self.out_var.set('')
+        self.race_combo.blockSignals(True)
+        self.race_combo.clear()
+        self.race_combo.addItems(sorted(self._race_map.keys()))
+        self.race_combo.setCurrentIndex(-1)
+        self.race_combo.blockSignals(False)
+        self.out_label.setText("")
 
-    def _on_race_selected(self, event=None):
-        """Update the output filename when a race is selected."""
-        selected = self.race_combo.get()
+    def _on_race_selected(self):
+        selected = self.race_combo.currentText()
         filename = self._race_map.get(selected, '')
-        self.out_var.set(f"{filename}.xml" if filename else '')
+        self.out_label.setText(f"{filename}.xml" if filename else "")
 
-    # ======================================================================
+    # ==================================================================
     # Singleplayer: Conversion
-    # ======================================================================
+    # ==================================================================
 
     def _convert(self):
-        """Parse the HTML startlist, match IDs, and write the XML output file."""
-        filepath = self.file_var.get().strip()
-        if not filepath:
-            messagebox.showwarning("No file",
-                                   "Please select an HTML file first.")
+        filepath = self.file_edit.text().strip()
+        url = self.url_edit.text().strip()
+
+        # Auto-fetch URL if no file is selected but a URL is provided
+        if not filepath and url:
+            self._clear_log()
+            self._log(f"Fetching: {url}")
+
+            def task():
+                return fetch_startlist_url(url)
+
+            def on_success(temp_path):
+                self.file_edit.setText(temp_path)
+                self._log(f"Fetched startlist from {url}")
+                self._convert()
+
+            run_async(self, task, on_success, "Fetching startlist\u2026")
             return
 
-        output = self.out_var.get().strip()
+        if not filepath:
+            QMessageBox.warning(
+                self, "No file",
+                "Please select an HTML file or enter a URL.")
+            return
+
+        output = self.out_label.text().strip()
         if not output:
-            messagebox.showwarning("No race",
-                                   "Please select a race first.")
+            QMessageBox.warning(
+                self, "No race", "Please select a race first.")
             return
 
         self._clear_log()
@@ -403,45 +443,38 @@ class StartlistView:
                 data, output, db=db, log=self._log,
                 on_progress=self._update_progress,
             )
-            self.progress_var.set(100)
+            self.progress.setValue(100)
             self._log(f"\nSaved to: {output}")
-            self.status.config(
-                text=f"Saved {output}  --  {total_teams} teams, "
-                     f"{total_riders} riders"
-            )
-            messagebox.showinfo(
-                "Success",
+            self.status.setText(
+                f"Saved {output}  \u2014  {total_teams} teams, "
+                f"{total_riders} riders")
+            QMessageBox.information(
+                self, "Success",
                 f"Startlist saved to {output}\n\n"
-                f"Teams: {total_teams}\nRiders: {total_riders}",
-            )
+                f"Teams: {total_teams}\nRiders: {total_riders}")
         else:
-            self.progress_var.set(0)
-            self.status.config(text="Error: no data parsed")
+            self.progress.setValue(0)
+            self.status.setText("Error: no data parsed")
             self._log("ERROR: Could not parse any startlist data "
                       "from the input.")
-            messagebox.showerror(
-                "Error",
+            QMessageBox.critical(
+                self, "Error",
                 "Could not parse any startlist data.\n"
-                "Make sure the file contains a valid startlist.",
-            )
+                "Make sure the file contains a valid startlist.")
 
-    # ======================================================================
+    # ==================================================================
     # Multiplayer: File dialogs
-    # ======================================================================
+    # ==================================================================
 
     def _mp_browse_cdb(self):
-        """Open a file dialog to select and load a CDB for multiplayer."""
-        path = filedialog.askopenfilename(
-            title="Select CDB database file",
-            filetypes=[("CDB files", "*.cdb")],
-        )
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select CDB database file", "", "CDB files (*.cdb)")
         if not path:
             return
-        self.mp_cdb_var.set(path)
+        self.mp_cdb_edit.setText(path)
         self._mp_load_cdb(path)
 
     def _mp_load_cdb(self, path):
-        """Convert CDB to SQLite and load for matching."""
         def task():
             gc.collect()
             return converter.export_cdb_to_sqlite(path)
@@ -452,109 +485,135 @@ class StartlistView:
             if self.mp_db.loaded:
                 msg = (f"CDB loaded: {len(self.mp_db.teams)} teams, "
                        f"{len(self.mp_db.cyclists)} cyclists")
-                self.mp_cdb_status.config(text=msg, fg="#333")
+                self.mp_cdb_status.setText(msg)
+                self.mp_cdb_status.setStyleSheet(
+                    "color: #333; font-size: 9pt;")
                 self._mp_log(msg)
             else:
-                self.mp_cdb_status.config(
-                    text="WARNING: DYN_team or DYN_cyclist tables missing",
-                    fg="#c00")
+                self.mp_cdb_status.setText(
+                    "WARNING: DYN_team or DYN_cyclist tables missing")
+                self.mp_cdb_status.setStyleSheet(
+                    "color: #c00; font-size: 9pt;")
                 self._mp_log("WARNING: tables missing in CDB.")
 
-        run_async(self.root, task, on_success, "Loading CDB...")
+        run_async(self, task, on_success, "Loading CDB\u2026")
 
     def _mp_browse_html(self):
-        """Open a file dialog to select an HTML startlist for multiplayer."""
-        path = filedialog.askopenfilename(
-            title="Select HTML startlist file",
-            filetypes=[("HTML files", "*.html *.htm"), ("All files", "*.*")],
-        )
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select HTML startlist file", "",
+            "HTML files (*.html *.htm);;All files (*.*)")
         if path:
-            self.mp_html_var.set(path)
+            self.mp_html_edit.setText(path)
+
+    def _mp_fetch_url(self):
+        url = self.mp_url_edit.text().strip()
+        if not url:
+            QMessageBox.warning(self, "No URL", "Please enter a URL first.")
+            return
+        self._mp_log(f"Fetching: {url}")
+
+        def task():
+            return fetch_startlist_url(url)
+
+        def on_success(temp_path):
+            self.mp_html_edit.setText(temp_path)
+            self._mp_log(f"Fetched startlist from {url}")
+            self.status.setText(f"Fetched: {url}")
+
+        run_async(self, task, on_success, "Fetching startlist\u2026")
 
     def _mp_browse_output(self):
-        """Open a save dialog to set the multiplayer output CDB path."""
-        path = filedialog.asksaveasfilename(
-            title="Save modified CDB as",
-            defaultextension=".cdb",
-            filetypes=[("CDB files", "*.cdb"), ("All files", "*.*")],
-        )
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save modified CDB as", "",
+            "CDB files (*.cdb);;All files (*.*)")
         if path:
-            self.mp_out_var.set(path)
+            self.mp_out_edit.setText(path)
 
-    # ======================================================================
+    # ==================================================================
     # Multiplayer: Logging helpers
-    # ======================================================================
+    # ==================================================================
 
     def _mp_log(self, msg):
-        """Append a message to the multiplayer log widget."""
-        self.mp_log_widget.config(state='normal')
-        self.mp_log_widget.insert('end', msg + "\n")
-        self.mp_log_widget.see('end')
-        self.mp_log_widget.config(state='disabled')
-        self.root.update_idletasks()
+        self.mp_log_widget.append(msg)
+        QApplication.processEvents()
 
     def _mp_clear_log(self):
-        """Clear the multiplayer log and reset the progress bar."""
-        self.mp_log_widget.config(state='normal')
-        self.mp_log_widget.delete('1.0', 'end')
-        self.mp_log_widget.config(state='disabled')
-        self.mp_progress_var.set(0)
+        self.mp_log_widget.clear()
+        self.mp_progress.setValue(0)
 
     def _mp_update_progress(self, current, total):
-        """Update the multiplayer progress bar percentage."""
-        self.mp_progress_var.set((current / total) * 100 if total else 0)
-        self.root.update_idletasks()
+        self.mp_progress.setValue(
+            int((current / total) * 100) if total else 0)
+        QApplication.processEvents()
 
-    # ======================================================================
+    # ==================================================================
     # Multiplayer: Processing
-    # ======================================================================
+    # ==================================================================
 
     def _mp_process(self):
-        """Run the full multiplayer pipeline: parse HTML, match IDs, modify CDB."""
-        # Validate inputs
         if not self.mp_db or not self.mp_db.loaded:
-            messagebox.showwarning("No CDB", "Please load a CDB file first.")
+            QMessageBox.warning(
+                self, "No CDB", "Please load a CDB file first.")
             return
 
-        html_path = self.mp_html_var.get().strip()
+        html_path = self.mp_html_edit.text().strip()
+        mp_url = self.mp_url_edit.text().strip()
+
+        # Auto-fetch URL if no file is selected but a URL is provided
+        if not html_path and mp_url:
+            self._mp_clear_log()
+            self._mp_log(f"Fetching: {mp_url}")
+
+            def fetch_task():
+                return fetch_startlist_url(mp_url)
+
+            def on_fetch_success(temp_path):
+                self.mp_html_edit.setText(temp_path)
+                self._mp_log(f"Fetched startlist from {mp_url}")
+                self._mp_process()
+
+            run_async(self, fetch_task, on_fetch_success,
+                      "Fetching startlist\u2026")
+            return
+
         if not html_path:
-            messagebox.showwarning("No startlist",
-                                   "Please select an HTML startlist file.")
+            QMessageBox.warning(
+                self, "No startlist",
+                "Please select an HTML file or enter a URL.")
             return
 
-        output = self.mp_out_var.get().strip()
+        output = self.mp_out_edit.text().strip()
         if not output:
-            messagebox.showwarning("No output",
-                                   "Please set an output CDB file path.")
+            QMessageBox.warning(
+                self, "No output",
+                "Please set an output CDB file path.")
             return
 
-        # Warn user to back up their CDB
-        proceed = messagebox.askokcancel(
-            "Backup reminder",
+        proceed = QMessageBox.question(
+            self, "Backup reminder",
             "Make sure you have a backup of your CDB file before proceeding.\n\n"
             "This will create a modified CDB where non-startlist riders on "
             "participating teams are moved to the free agent pool (team 119) "
-            "and their contracts are removed.\n\n"
-            "Continue?",
+            "and their contracts are removed.\n\nContinue?",
+            QMessageBox.Ok | QMessageBox.Cancel,
         )
-        if not proceed:
+        if proceed != QMessageBox.Ok:
             return
 
         self._mp_clear_log()
         self._mp_log(f"Reading startlist: {html_path}")
 
-        # 1. Parse HTML
         data = self.parser.parse_file(html_path)
         if not data:
             self._mp_log("ERROR: Could not parse startlist data.")
-            messagebox.showerror("Error", "Could not parse startlist data.")
+            QMessageBox.critical(
+                self, "Error", "Could not parse startlist data.")
             return
 
         total_teams = len(data)
         total_riders = sum(len(r) for r in data.values())
         self._mp_log(f"Parsed {total_teams} teams, {total_riders} riders\n")
 
-        # 2. Match teams and riders
         matched_team_ids = set()
         matched_rider_ids = set()
         unmatched_teams = []
@@ -571,8 +630,7 @@ class StartlistView:
                 self._mp_log(f"  [TEAM]  {team_name} -> NOT FOUND")
 
             for rider_name in riders:
-                rider_id, matched = self.mp_db.match_rider(
-                    rider_name, team_id)
+                rider_id, _ = self.mp_db.match_rider(rider_name, team_id)
                 if rider_id:
                     matched_rider_ids.add(str(rider_id))
                     self._mp_log(
@@ -587,84 +645,80 @@ class StartlistView:
 
         self._mp_log(f"\nMatched {len(matched_team_ids)} teams, "
                      f"{len(matched_rider_ids)} riders")
-
         if unmatched_teams:
             self._mp_log(f"[!] {len(unmatched_teams)} team(s) not matched")
         if unmatched_riders:
-            self._mp_log(f"[!] {len(unmatched_riders)} rider(s) not matched")
+            self._mp_log(
+                f"[!] {len(unmatched_riders)} rider(s) not matched")
 
         if not matched_team_ids:
             self._mp_log("ERROR: No teams matched. Cannot proceed.")
-            messagebox.showerror("Error", "No teams matched the database.")
+            QMessageBox.critical(
+                self, "Error", "No teams matched the database.")
             return
 
-        # 3. Modify database: move non-startlist riders to team 119
         self._mp_log("\nMoving non-startlist riders to team 119...")
 
         working_path, moved, contracts = apply_multiplayer_startlist(
-            self.mp_temp_path, matched_team_ids, matched_rider_ids,
-        )
+            self.mp_temp_path, matched_team_ids, matched_rider_ids)
         self._mp_log(f"Moved {moved} rider(s) to team 119")
         self._mp_log(f"Removed {contracts} contract(s)")
 
-        # 4. Export to CDB
         self._mp_log(f"Saving to: {output}")
 
         def task():
             return converter.import_sqlite_to_cdb(working_path, output)
 
         def on_success(_result):
-            self.mp_progress_var.set(100)
+            self.mp_progress.setValue(100)
             self._mp_log(f"\nDone! Saved to: {output}")
-            self.status.config(
-                text=f"Saved {output}  --  {len(matched_rider_ids)} on "
-                     f"startlist, {moved} moved to team 119"
-            )
-            messagebox.showinfo(
-                "Success",
+            self.status.setText(
+                f"Saved {output}  \u2014  {len(matched_rider_ids)} on "
+                f"startlist, {moved} moved to team 119")
+            QMessageBox.information(
+                self, "Success",
                 f"Multiplayer CDB saved to:\n{output}\n\n"
                 f"Teams on startlist: {len(matched_team_ids)}\n"
                 f"Riders on startlist: {len(matched_rider_ids)}\n"
-                f"Riders moved to team 119: {moved}",
-            )
+                f"Riders moved to team 119: {moved}")
 
-        run_async(self.root, task, on_success, "Saving CDB...")
+        run_async(self, task, on_success, "Saving CDB\u2026")
 
-    # ======================================================================
+    # ==================================================================
     # Navigation
-    # ======================================================================
+    # ==================================================================
 
     def _on_home(self):
-        """Reset all state and navigate back to the home screen."""
-        # Reset singleplayer fields
+        # Reset singleplayer
         self.temp_path = None
         self.db = None
-        self.file_var.set('')
-        self.out_var.set('')
+        self.file_edit.clear()
+        self.url_edit.clear()
+        self.out_label.setText("")
         self._race_map = {}
-        self.race_combo['values'] = []
-        self.race_combo.set('')
-        self.db_status.config(text='', fg='#888')
-        self.progress_var.set(0)
+        self.race_combo.clear()
+        self.db_status.setText("")
+        self.db_status.setStyleSheet("color: #888; font-size: 9pt;")
+        self.progress.setValue(0)
         self._clear_log()
         if self._db_names:
-            self.db_combo.current(0)
+            self.db_combo.setCurrentIndex(0)
         else:
-            self.db_combo.set('')
+            self.db_combo.setCurrentIndex(-1)
 
-        # Reset multiplayer fields
+        # Reset multiplayer
         self.mp_temp_path = None
         self.mp_db = None
-        self.mp_cdb_var.set('')
-        self.mp_html_var.set('')
-        self.mp_out_var.set('')
-        self.mp_cdb_status.config(text='No CDB loaded', fg='#888')
-        self.mp_progress_var.set(0)
+        self.mp_cdb_edit.clear()
+        self.mp_html_edit.clear()
+        self.mp_url_edit.clear()
+        self.mp_out_edit.clear()
+        self.mp_cdb_status.setText("No CDB loaded")
+        self.mp_cdb_status.setStyleSheet("color: #888; font-size: 9pt;")
+        self.mp_progress.setValue(0)
         self._mp_clear_log()
 
-        # Reset to first tab
-        self.notebook.select(0)
-
-        self.status.config(text='Ready')
+        self.tabs.setCurrentIndex(0)
+        self.status.setText("Ready")
         gc.collect()
-        self.go_home()
+        self.go_home.emit()

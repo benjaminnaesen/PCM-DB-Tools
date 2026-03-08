@@ -4,16 +4,11 @@
 python>=3.10
 
 # Standard Library Modules Used:
-# - tkinter (GUI framework - included with Python on Windows)
 # - sqlite3 (Database operations)
 # - csv, json, os, sys, subprocess, shutil, tempfile, threading, gc
-
-# Note for Linux users:
-# You may need to install tkinter separately:
-#   Ubuntu/Debian: sudo apt-get install python3-tk
-#   Fedora: sudo dnf install python3-tkinter
-#   Arch: sudo pacman -S tk
 
 # External Dependencies:
 # - SQLiteExporter.exe (Windows executable, included in SQLiteExporter/)
 beautifulsoup4
+cloudscraper
+PySide6>=6.6
