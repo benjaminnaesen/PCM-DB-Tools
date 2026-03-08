@@ -1,68 +1,106 @@
 """
-UI utility functions for PCM Database Tools.
+Shared UI utility functions and widgets.
 
-Provides ``run_async`` — a helper that runs a blocking callable in a
-background thread while displaying a modal progress dialog.  The result
-is delivered back to the GUI thread via a Qt signal so that the caller
-can safely update widgets.
+Provides reusable components like tooltips and async task execution
+with progress feedback.
 """
 
 import threading
-
-from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import (
-    QDialog, QLabel, QMessageBox, QProgressBar, QVBoxLayout,
-)
+import tkinter as tk
+from tkinter import ttk, messagebox
 
 
-class _WorkerSignals(QObject):
-    """Thread-safe signals emitted by the background worker."""
-    finished = Signal(object)
-    error = Signal(str)
+class ToolTip:
+    """
+    Hover tooltip widget for displaying help text.
+
+    Automatically shows/hides a small yellow popup on mouse enter/leave.
+    """
+
+    def __init__(self, widget, text):
+        """
+        Attach tooltip to a widget.
+
+        Args:
+            widget: Tkinter widget to attach tooltip to
+            text (str): Text to display in tooltip
+        """
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        self.widget.bind("<Enter>", self.show_tip)
+        self.widget.bind("<Leave>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            tw, text=self.text, justify=tk.LEFT,
+            bg="#ffffe0", relief=tk.SOLID, bd=1,
+            font=("tahoma", "8", "normal"),
+        ).pack(ipadx=1)
+
+    def hide_tip(self, event=None):
+        if self.tip_window:
+            self.tip_window.destroy()
+            self.tip_window = None
 
 
-def run_async(parent, task, callback, message):
-    """Run *task* in a daemon thread with a modal progress dialog.
+def run_async(root, task, callback, message):
+    """
+    Run a task asynchronously with progress dialog.
 
     Args:
-        parent:   Parent QWidget (dialog is centered on it).
-        task:     Callable executed in the background thread.
-        callback: Called with the task result on success (GUI thread).
-        message:  Text shown in the progress dialog.
+        root: Root tkinter window
+        task (callable): Function to execute in background thread
+        callback (callable): Function to call with task result on completion
+        message (str): Progress message to display
+
+    Notes:
+        - Shows modal progress dialog with indeterminate progress bar
+        - Executes task in daemon thread to prevent blocking UI
+        - Automatically handles errors with messagebox
+        - Destroys dialog on completion
     """
-    dialog = QDialog(parent)
-    dialog.setWindowTitle("Please wait\u2026")
-    dialog.setFixedSize(300, 100)
-    dialog.setModal(True)
+    popup = tk.Toplevel(root)
+    popup.title("Please wait...")
+    popup.geometry("300x100")
+    popup.resizable(False, False)
+    popup.transient(root)
+    popup.grab_set()
 
-    layout = QVBoxLayout(dialog)
-    layout.addWidget(QLabel(message))
-    progress = QProgressBar()
-    progress.setRange(0, 0)  # indeterminate
-    layout.addWidget(progress)
+    try:
+        x = root.winfo_rootx() + (root.winfo_width() // 2) - 150
+        y = root.winfo_rooty() + (root.winfo_height() // 2) - 50
+        popup.geometry(f"+{x}+{y}")
+    except tk.TclError:
+        pass
 
-    signals = _WorkerSignals()
+    tk.Label(popup, text=message, pady=10).pack()
+    pb = ttk.Progressbar(popup, mode="indeterminate")
+    pb.pack(fill=tk.X, padx=20, pady=5)
+    pb.start(10)
 
-    def _on_finished(result):
-        dialog.accept()
+    def thread_target():
         try:
-            callback(result)
-        except Exception as exc:
-            QMessageBox.critical(parent, "Error", str(exc))
+            res = task()
+            root.after(0, lambda: finish(res, None))
+        except Exception as e:
+            root.after(0, lambda err=e: finish(None, err))
 
-    def _on_error(err_msg):
-        dialog.accept()
-        QMessageBox.critical(parent, "Error", err_msg)
+    def finish(res, err):
+        popup.destroy()
+        if err:
+            messagebox.showerror("Error", str(err))
+        else:
+            try:
+                callback(res)
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
-    signals.finished.connect(_on_finished)
-    signals.error.connect(_on_error)
-
-    def _thread_target():
-        try:
-            result = task()
-            signals.finished.emit(result)
-        except Exception as exc:
-            signals.error.emit(str(exc))
-
-    threading.Thread(target=_thread_target, daemon=True).start()
-    dialog.exec()
+    threading.Thread(target=thread_target, daemon=True).start()

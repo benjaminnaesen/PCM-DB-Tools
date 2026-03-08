@@ -1,663 +1,726 @@
 """
 Table view widget with editing, pagination, and column management.
 
-Main data grid component using QTableView with a custom model and delegate
-for inline editing, sorting, searching, and column visibility.
+Main data grid component for viewing and editing database tables
+with support for inline editing, sorting, searching, and column visibility.
 """
 
-from PySide6.QtCore import (
-    QAbstractTableModel, QModelIndex, QTimer, Qt, Signal,
-)
-from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QLineEdit, QMenu,
-    QMessageBox, QStyledItemDelegate, QTableView, QVBoxLayout, QWidget,
-)
+import tkinter as tk
+from tkinter import ttk, messagebox
 
 from core.constants import (
-    DEFAULT_COLUMN_WIDTH, RESIZE_SAVE_DELAY, ROW_CHUNK_SIZE,
+    ROW_CHUNK_SIZE, COL_CHUNK_SIZE, DEFAULT_COLUMN_WIDTH,
+    RESIZE_SAVE_DELAY, DEFAULT_WINDOW_WIDTH,
 )
 
 
-# ======================================================================
-# Model
-# ======================================================================
+class TableView:
+    """
+    Treeview-based table editor with pagination and inline editing.
 
-class DatabaseTableModel(QAbstractTableModel):
-    """Table model with lazy row loading via canFetchMore/fetchMore."""
+    Features:
+        - Paginated data loading with prev/next page navigation
+        - Inline cell editing with Tab/Arrow navigation
+        - Column sorting (click headers)
+        - Right-click context menu for row operations
+        - Foreign key dropdown editors
+        - Column show/hide support
+        - Persistent column widths
+        - Undo/redo integration
+    """
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._columns: list[str] = []
-        self._visible_indices: list[int] = []
-        self._rows: list[tuple] = []
-        self._all_columns: list[str] = []
-        self._total_rows = 0
+    def __init__(self, parent, app_state, on_change_callback):
+        """
+        Initialize table view widget.
 
-        self.db = None
-        self.table_name = None
-        self.search_term = ""
-        self.lookup_mode = False
-        self.sort_col = None
-        self.sort_reverse = False
-        self.page_size = ROW_CHUNK_SIZE
-
-    # -- Qt interface --------------------------------------------------
-
-    def rowCount(self, parent=QModelIndex()):
-        return len(self._rows)
-
-    def columnCount(self, parent=QModelIndex()):
-        return len(self._columns)
-
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return None
-        if role in (Qt.DisplayRole, Qt.EditRole):
-            row = self._rows[index.row()]
-            vi = self._visible_indices[index.column()]
-            return "" if row[vi] is None else str(row[vi])
-        return None
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            col = self._columns[section]
-            if col == self.sort_col:
-                prefix = "\u25bc " if self.sort_reverse else "\u25b2 "
-                return prefix + col
-            return col
-        return None
-
-    def flags(self, index):
-        base = super().flags(index)
-        if index.isValid() and index.column() > 0:
-            return base | Qt.ItemIsEditable
-        return base
-
-    # -- Lazy loading --------------------------------------------------
-
-    def canFetchMore(self, parent=QModelIndex()):
-        return len(self._rows) < self._total_rows
-
-    def fetchMore(self, parent=QModelIndex()):
-        if not self.db or not self.table_name:
-            return
-        offset = len(self._rows)
-        _, new_rows = self.db.fetch_data(
-            self.table_name, self.search_term, self.lookup_mode,
-            self.page_size, offset, self.sort_col, self.sort_reverse,
-        )
-        if not new_rows:
-            return
-        first = len(self._rows)
-        self.beginInsertRows(QModelIndex(), first, first + len(new_rows) - 1)
-        self._rows.extend(new_rows)
-        self.endInsertRows()
-
-    # -- Public helpers ------------------------------------------------
-
-    def load(self, db, table_name, search_term, lookup_mode,
-             sort_col, sort_reverse, visible_set):
-        """Full reload: fetch first page and reset model."""
-        self.beginResetModel()
-
-        self.db = db
-        self.table_name = table_name
-        self.search_term = search_term
-        self.lookup_mode = lookup_mode
-        self.sort_col = sort_col
-        self.sort_reverse = sort_reverse
-
-        if not db or not table_name:
-            self._columns = []
-            self._visible_indices = []
-            self._rows = []
-            self._all_columns = []
-            self._total_rows = 0
-            self.endResetModel()
-            return
-
-        # Default sort to first column (PK)
-        if self.sort_col is None:
-            temp = db.get_columns(table_name)
-            if temp:
-                self.sort_col = temp[0]
-
-        self._total_rows = db.get_row_count(
-            table_name, search_term, lookup_mode)
-
-        columns, rows = db.fetch_data(
-            table_name, search_term, lookup_mode,
-            self.page_size, 0, self.sort_col, self.sort_reverse,
-        )
-        self._all_columns = columns
-
-        if visible_set is not None:
-            vs = set(visible_set)
-            self._visible_indices = [
-                i for i, c in enumerate(columns) if c in vs]
-            self._columns = [columns[i] for i in self._visible_indices]
-        else:
-            self._visible_indices = list(range(len(columns)))
-            self._columns = list(columns)
-
-        self._rows = list(rows)
-        self.endResetModel()
-
-    def load_from_offset(self, offset):
-        """Reload starting from a specific row offset."""
-        if not self.db or not self.table_name:
-            return
-        self.beginResetModel()
-        self._total_rows = self.db.get_row_count(
-            self.table_name, self.search_term, self.lookup_mode)
-        _, rows = self.db.fetch_data(
-            self.table_name, self.search_term, self.lookup_mode,
-            self.page_size, offset, self.sort_col, self.sort_reverse,
-        )
-        self._rows = list(rows)
-        self.endResetModel()
-
-    def all_columns(self):
-        return list(self._all_columns)
-
-    def visible_columns(self):
-        return list(self._columns)
-
-    def raw_row(self, model_row):
-        """Return the full raw row tuple for a given model row index."""
-        if 0 <= model_row < len(self._rows):
-            return self._rows[model_row]
-        return None
-
-    def pk_value(self, model_row):
-        """Return PK (column 0) for a given model row."""
-        row = self.raw_row(model_row)
-        return row[0] if row else None
-
-    def column_name(self, visible_col):
-        """Return the real column name for a visible column index."""
-        if 0 <= visible_col < len(self._columns):
-            return self._columns[visible_col]
-        return None
-
-    def update_row_in_place(self, model_row, all_col_idx, new_val):
-        """Update a single cell value in the cached row data."""
-        if 0 <= model_row < len(self._rows):
-            row = list(self._rows[model_row])
-            row[all_col_idx] = new_val
-            self._rows[model_row] = tuple(row)
-            vis_col = (self._visible_indices.index(all_col_idx)
-                       if all_col_idx in self._visible_indices else -1)
-            if vis_col >= 0:
-                idx = self.index(model_row, vis_col)
-                self.dataChanged.emit(idx, idx)
-
-
-# ======================================================================
-# Delegate
-# ======================================================================
-
-class CellDelegate(QStyledItemDelegate):
-    """Inline cell editor: QComboBox for FK lookups, QLineEdit otherwise."""
-
-    def __init__(self, table_view_widget, parent=None):
-        super().__init__(parent)
-        self._tv = table_view_widget
-
-    def createEditor(self, parent, option, index):
-        col_name = self._tv.model.column_name(index.column())
-        if self._tv.lookup_mode and col_name and col_name.startswith("fkID"):
-            fk_opts = self._tv.db.get_fk_options(col_name) if self._tv.db else None
-            if fk_opts:
-                editor = QComboBox(parent)
-                editor.addItems(list(fk_opts.keys()))
-                editor.setEditable(True)
-                editor._fk_options = fk_opts
-                return editor
-        editor = QLineEdit(parent)
-        return editor
-
-    def setEditorData(self, editor, index):
-        value = index.data(Qt.EditRole) or ""
-        if isinstance(editor, QComboBox):
-            idx = editor.findText(value)
-            if idx >= 0:
-                editor.setCurrentIndex(idx)
-            else:
-                editor.setEditText(value)
-        else:
-            editor.setText(value)
-            editor.selectAll()
-
-    def setModelData(self, editor, model, index):
-        col_name = self._tv.model.column_name(index.column())
-        row = index.row()
-        raw = self._tv.model.raw_row(row)
-        if not raw:
-            return
-
-        pk_val = raw[0]
-        all_col_idx = self._tv.model._visible_indices[index.column()]
-        old_val = "" if raw[all_col_idx] is None else str(raw[all_col_idx])
-
-        if isinstance(editor, QComboBox):
-            new_display = editor.currentText()
-            fk_opts = getattr(editor, '_fk_options', None)
-            if fk_opts and new_display in fk_opts:
-                db_val = fk_opts[new_display]
-                undo_old = fk_opts.get(old_val, old_val)
-            else:
-                return
-        else:
-            new_display = editor.text()
-            db_val = new_display
-            undo_old = old_val
-
-        if str(new_display) == str(old_val):
-            return
-
-        pk_col = self._tv.model._all_columns[0]
-        self._tv.state.push_undo(
-            self._tv.current_table, col_name, undo_old, db_val, pk_val)
-        self._tv.data_changed.emit()
-        self._tv.db.update_cell(
-            self._tv.current_table, col_name, db_val, pk_col, pk_val)
-
-        # Update cached row in-place (no full reload)
-        self._tv.model.update_row_in_place(row, all_col_idx, new_display)
-
-    def eventFilter(self, editor, event):
-        from PySide6.QtCore import QEvent
-        if event.type() == QEvent.KeyPress:
-            key = event.key()
-            view = self._tv.table
-
-            if key == Qt.Key_Escape:
-                self.commitData.emit(editor)
-                self.closeEditor.emit(
-                    editor, QStyledItemDelegate.EndEditHint.NoHint)
-                return True
-
-            if key in (Qt.Key_Tab, Qt.Key_Backtab):
-                self.commitData.emit(editor)
-                cur = view.currentIndex()
-                if key == Qt.Key_Backtab:
-                    if cur.column() > 1:
-                        nxt = cur.sibling(cur.row(), cur.column() - 1)
-                    elif cur.row() > 0:
-                        nxt = cur.sibling(
-                            cur.row() - 1,
-                            self._tv.model.columnCount() - 1)
-                    else:
-                        nxt = cur
-                else:
-                    if cur.column() < self._tv.model.columnCount() - 1:
-                        nxt = cur.sibling(cur.row(), cur.column() + 1)
-                    elif cur.row() < self._tv.model.rowCount() - 1:
-                        nxt = cur.sibling(cur.row() + 1, 1)
-                    else:
-                        nxt = cur
-                self.closeEditor.emit(
-                    editor, QStyledItemDelegate.EndEditHint.NoHint)
-                view.setCurrentIndex(nxt)
-                view.edit(nxt)
-                return True
-
-            if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Return):
-                self.commitData.emit(editor)
-                cur = view.currentIndex()
-                if key == Qt.Key_Up and cur.row() > 0:
-                    nxt = cur.sibling(cur.row() - 1, cur.column())
-                elif key in (Qt.Key_Down, Qt.Key_Return):
-                    if cur.row() < self._tv.model.rowCount() - 1:
-                        nxt = cur.sibling(cur.row() + 1, cur.column())
-                    else:
-                        nxt = cur
-                else:
-                    nxt = cur
-                self.closeEditor.emit(
-                    editor, QStyledItemDelegate.EndEditHint.NoHint)
-                view.setCurrentIndex(nxt)
-                view.edit(nxt)
-                return True
-
-        return super().eventFilter(editor, event)
-
-
-# ======================================================================
-# View widget
-# ======================================================================
-
-class TableView(QWidget):
-    """Database table viewer with inline editing, sorting and pagination."""
-
-    data_changed = Signal()
-    selection_changed = Signal(int)  # number of selected rows
-
-    def __init__(self, app_state, parent=None):
-        super().__init__(parent)
+        Args:
+            parent: Parent tkinter widget
+            app_state (AppState): Application state manager
+            on_change_callback (callable): Called when data is modified
+        """
+        self.parent = parent
         self.state = app_state
+        self.on_change = on_change_callback
+
         self.db = None
         self.current_table = None
         self.search_term = ""
         self.lookup_mode = False
+
+        self.active_editor = None
+        self.editing_data = {}
         self.sort_state = {"column": None, "reverse": False}
-        self._last_saved_widths = {}
+        self.page_size = ROW_CHUNK_SIZE
+        self.offset = 0
+        self.total_rows = 0
+        self.loading_data = False
+        self.last_saved_widths = {}
+        self._resize_timer = None
+        self.all_columns = []
+        self._configured_columns = []
+        self._col_window_end = 0
 
-        self._resize_timer = QTimer(self)
-        self._resize_timer.setSingleShot(True)
-        self._resize_timer.setInterval(RESIZE_SAVE_DELAY)
-        self._resize_timer.timeout.connect(self._save_column_widths)
+        self._setup_ui()
+        self._create_menu()
 
-        self._build_ui()
+    def _setup_ui(self):
+        self.tree = ttk.Treeview(self.parent, show="headings", selectmode="extended")
+        self.tree.tag_configure('oddrow', background="#f4f4f4")
+        self.tree.tag_configure('evenrow', background="#ffffff")
 
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.vsb = ttk.Scrollbar(self.parent, command=self.tree.yview)
+        self.hsb = ttk.Scrollbar(self.parent, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=self.on_tree_scroll, xscrollcommand=self.on_h_scroll)
 
-        self.model = DatabaseTableModel(self)
-        self.delegate = CellDelegate(self, self)
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        self.vsb.grid(row=0, column=1, sticky='ns')
+        self.hsb.grid(row=1, column=0, sticky='ew')
+        self.parent.grid_columnconfigure(0, weight=1)
+        self.parent.grid_rowconfigure(0, weight=1)
 
-        self.table = QTableView()
-        self.table.setModel(self.model)
-        self.table.setItemDelegate(self.delegate)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.table.setAlternatingRowColors(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setStyleSheet(
-            "QTableView { gridline-color: #ddd;"
-            "  alternate-background-color: #f4f4f4; }"
-        )
+        self.tree.bind("<Double-1>", self.on_double_click)
+        self.tree.bind("<Button-3>", self.show_context_menu)
+        self.tree.bind("<ButtonRelease-1>", self.on_single_click)
+        self.tree.bind("<Button-1>", self.on_tree_click)
+        self.tree.bind("<ButtonRelease-1>", self.on_column_resize, add='+')
+        self.tree.bind("<Control-a>", self.select_all_rows)
+        self.tree.bind("<Button-3>", self.on_right_click, add='+')
 
-        header = self.table.horizontalHeader()
-        header.setDefaultSectionSize(DEFAULT_COLUMN_WIDTH)
-        header.setStretchLastSection(False)
-        header.setSectionsMovable(False)
-        header.sectionClicked.connect(self._on_header_clicked)
-        header.sectionResized.connect(self._on_section_resized)
-        header.setContextMenuPolicy(Qt.CustomContextMenu)
-        header.customContextMenuRequested.connect(self._show_column_menu)
+    def _create_menu(self):
+        self.row_menu = tk.Menu(self.parent, tearoff=0)
+        self.row_menu.add_command(label="Duplicate Row", command=self.duplicate_row)
+        self.row_menu.add_command(label="Delete Row", command=self.delete_row)
 
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._show_row_menu)
-
-        self.table.selectionModel().selectionChanged.connect(
-            lambda: self.selection_changed.emit(
-                len(self.table.selectionModel().selectedRows())))
-
-        layout.addWidget(self.table)
+        self.column_menu = tk.Menu(self.parent, tearoff=0)
+        self.column_menu.add_command(label="Hide Column", command=self.hide_column)
 
     # ------------------------------------------------------------------
     # Database / table switching
     # ------------------------------------------------------------------
 
     def set_db(self, db):
+        """Set database manager instance."""
         self.db = db
         self.current_table = None
-        self.model.load(None, None, "", False, None, False, None)
+        self._configured_columns = []
+        self._col_window_end = 0
+        self.tree.delete(*self.tree.get_children())
+        self.tree["columns"] = []
 
     def set_table(self, table_name):
+        """Switch to viewing a different table."""
         self.current_table = table_name
         self.sort_state = {"column": None, "reverse": False}
+        self._configured_columns = []
+        self._col_window_end = 0
         self.load_table_data()
 
     def set_search_term(self, term):
+        """Update the search filter and reload the table."""
         self.search_term = term
         self.load_table_data()
 
     def set_lookup_mode(self, enabled):
+        """Toggle FK lookup mode and reload with display names or raw IDs."""
         self.lookup_mode = enabled
+        self._configured_columns = []
+        self._col_window_end = 0
         self.load_table_data()
+
+    # ------------------------------------------------------------------
+    # Visible column filtering helper
+    # ------------------------------------------------------------------
+
+    def _filter_visible(self, columns, rows):
+        """Filter columns and rows to only include visible ones.
+
+        Args:
+            columns (list[str]): All column names
+            rows (list[tuple]): Raw row data
+
+        Returns:
+            tuple: (display_columns, visible_indices, filtered_rows)
+        """
+        visible = self.state.get_visible_columns(self.current_table)
+        if visible is not None:
+            visible_set = set(visible)
+            display_columns = [col for col in columns if col in visible_set]
+            indices = [i for i, col in enumerate(columns) if col in visible_set]
+        else:
+            display_columns = columns
+            indices = list(range(len(columns)))
+
+        filtered = [tuple(row[i] for i in indices) for row in rows]
+        return display_columns, indices, filtered
 
     # ------------------------------------------------------------------
     # Data loading
     # ------------------------------------------------------------------
 
+    def on_tree_scroll(self, first, last):
+        """Handle vertical scroll — load more rows near bottom edge."""
+        self.vsb.set(first, last)
+        if float(last) > 0.95:
+            self.load_more_data()
+
+    def on_h_scroll(self, first, last):
+        """Handle horizontal scroll — load more columns near right edge."""
+        self.hsb.set(first, last)
+        if float(last) > 0.9 and self._col_window_end < len(self._configured_columns):
+            self._load_more_columns()
+
+    def sort_column(self, col, reverse):
+        """Sort table by column."""
+        self.sort_state = {"column": col, "reverse": reverse}
+        self.load_table_data()
+
+    def _compute_col_window(self, total_cols):
+        """Compute how many columns to show in the initial window.
+
+        Returns:
+            int: Number of columns for the display window.
+        """
+        tree_width = self.tree.winfo_width()
+        if tree_width < 100:
+            tree_width = DEFAULT_WINDOW_WIDTH
+        visible_count = tree_width // DEFAULT_COLUMN_WIDTH
+        return min(visible_count + COL_CHUNK_SIZE, total_cols)
+
     def load_table_data(self, start_offset=0):
+        """
+        Load and display table data with infinite scroll on rows and columns.
+
+        Args:
+            start_offset (int): Row offset for pagination (default: 0)
+        """
+        if self.active_editor:
+            self.cancel_edit()
         if not self.current_table or not self.db:
             return
 
-        visible = self.state.get_visible_columns(self.current_table)
-        self.model.load(
-            self.db, self.current_table, self.search_term,
-            self.lookup_mode, self.sort_state["column"],
-            self.sort_state["reverse"], visible,
+        self.tree.grid_remove()
+        self.offset = start_offset
+        self.total_rows = self.db.get_row_count(self.current_table, self.search_term, self.lookup_mode)
+
+        # Set default sort to first column (primary key) if not set
+        if self.sort_state["column"] is None:
+            temp_columns = self.db.get_columns(self.current_table)
+            if temp_columns:
+                self.sort_state = {"column": temp_columns[0], "reverse": False}
+
+        columns, row_data = self.db.fetch_data(
+            self.current_table, self.search_term, self.lookup_mode,
+            self.page_size, self.offset,
+            self.sort_state["column"], self.sort_state["reverse"],
+        )
+        self.offset += len(row_data)
+
+        # Store all columns (including hidden ones)
+        self.all_columns = columns
+
+        # Filter to visible columns
+        display_columns, _, filtered_rows = self._filter_visible(columns, row_data)
+
+        # Reset displaycolumns before changing columns to avoid TclError
+        self.tree["displaycolumns"] = "#all"
+        self.tree["columns"] = display_columns
+        self._configured_columns = list(display_columns)
+
+        # Compute column window — only configure/show a subset initially
+        self._col_window_end = self._compute_col_window(len(display_columns))
+        window_cols = display_columns[:self._col_window_end]
+
+        if self._col_window_end < len(display_columns):
+            self.tree["displaycolumns"] = window_cols
+
+        # Configure column headings and widths for window columns
+        saved_widths = self.state.get_column_widths(self.current_table) if self.current_table else None
+        current_widths = {}
+
+        for col in window_cols:
+            prefix = ""
+            if col == self.sort_state["column"]:
+                prefix = "\u25bc " if self.sort_state["reverse"] else "\u25b2 "
+            self.tree.heading(
+                col, text=prefix + col,
+                command=lambda _c=col: self.sort_column(
+                    _c,
+                    not self.sort_state["reverse"] if _c == self.sort_state["column"] else False,
+                ),
+            )
+            width = saved_widths.get(col, DEFAULT_COLUMN_WIDTH) if saved_widths else DEFAULT_COLUMN_WIDTH
+            self.tree.column(col, width=width, stretch=False)
+            current_widths[col] = width
+
+        self.last_saved_widths = current_widths.copy()
+
+        # Insert rows
+        self.tree.delete(*self.tree.get_children())
+        for index, row in enumerate(filtered_rows):
+            tag = 'evenrow' if index % 2 == 0 else 'oddrow'
+            self.tree.insert("", "end", values=row, tags=(tag,))
+        self.tree.grid()
+
+    def load_more_data(self):
+        """Load next page of data when scrolling to bottom."""
+        if not self.current_table or self.loading_data or self.offset >= self.total_rows:
+            return
+        self.loading_data = True
+
+        _, row_data = self.db.fetch_data(
+            self.current_table, self.search_term, self.lookup_mode,
+            self.page_size, self.offset,
+            self.sort_state["column"], self.sort_state["reverse"],
         )
 
-        if start_offset > 0:
-            self.model.load_from_offset(start_offset)
+        _, _, filtered_rows = self._filter_visible(self.all_columns, row_data)
 
-        self._apply_column_widths()
+        start_idx = self.offset
+        for index, row in enumerate(filtered_rows):
+            tag = 'evenrow' if (start_idx + index) % 2 == 0 else 'oddrow'
+            self.tree.insert("", "end", values=row, tags=(tag,))
+        self.offset += len(row_data)
+        self.loading_data = False
 
-    def _apply_column_widths(self):
-        saved = self.state.get_column_widths(self.current_table)
-        header = self.table.horizontalHeader()
-        widths = {}
-        for i, col in enumerate(self.model.visible_columns()):
-            w = (saved.get(col, DEFAULT_COLUMN_WIDTH)
-                 if saved else DEFAULT_COLUMN_WIDTH)
-            header.resizeSection(i, w)
-            widths[col] = w
-        self._last_saved_widths = widths
-
-    # ------------------------------------------------------------------
-    # Sorting
-    # ------------------------------------------------------------------
-
-    def _on_header_clicked(self, logical_index):
-        col = self.model.column_name(logical_index)
-        if not col:
+    def _load_more_columns(self):
+        """Expand the column display window when scrolling right."""
+        if not self._configured_columns or self._col_window_end >= len(self._configured_columns):
             return
-        if col == self.sort_state["column"]:
-            self.sort_state["reverse"] = not self.sort_state["reverse"]
+
+        old_end = self._col_window_end
+        chunk = self._compute_col_window(len(self._configured_columns))
+        new_end = min(old_end + chunk, len(self._configured_columns))
+        if new_end == old_end:
+            return
+
+        self._col_window_end = new_end
+
+        # Configure widths and headings for newly added columns
+        saved_widths = self.state.get_column_widths(self.current_table) if self.current_table else None
+        for col in self._configured_columns[old_end:new_end]:
+            prefix = ""
+            if col == self.sort_state["column"]:
+                prefix = "\u25bc " if self.sort_state["reverse"] else "\u25b2 "
+            self.tree.heading(
+                col, text=prefix + col,
+                command=lambda _c=col: self.sort_column(
+                    _c,
+                    not self.sort_state["reverse"] if _c == self.sort_state["column"] else False,
+                ),
+            )
+            width = saved_widths.get(col, DEFAULT_COLUMN_WIDTH) if saved_widths else DEFAULT_COLUMN_WIDTH
+            self.tree.column(col, width=width, stretch=False)
+            self.last_saved_widths[col] = width
+
+        # Expand display window (no row re-insertion needed)
+        if self._col_window_end >= len(self._configured_columns):
+            self.tree["displaycolumns"] = "#all"
         else:
-            self.sort_state = {"column": col, "reverse": False}
-        self.load_table_data()
+            self.tree["displaycolumns"] = self._configured_columns[:new_end]
 
     # ------------------------------------------------------------------
-    # Column resize persistence
+    # Click handlers
     # ------------------------------------------------------------------
 
-    def _on_section_resized(self, logical_index, old_size, new_size):
-        self._resize_timer.start()
+    def on_double_click(self, event):
+        item = self.tree.identify_row(event.y)
+        col_id = self.tree.identify_column(event.x)
+        self.edit_cell(item, col_id)
 
-    def _save_column_widths(self):
-        if not self.current_table:
+    def on_single_click(self, event):
+        if not self.lookup_mode:
             return
-        header = self.table.horizontalHeader()
+        try:
+            region = self.tree.identify_region(event.x, event.y)
+        except Exception:
+            region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":
+            col_id = self.tree.identify_column(event.x)
+            item = self.tree.identify_row(event.y)
+            if col_id and item:
+                index = int(col_id.replace('#', '')) - 1
+                if index >= 0 and self.tree["columns"][index].startswith("fkID"):
+                    self.edit_cell(item, col_id)
+
+    def on_tree_click(self, event):
+        if self.active_editor:
+            self.commit_editor()
+
+    def on_column_resize(self, event):
+        """Save column widths when user resizes a column (debounced)."""
+        if not self.current_table or not self._configured_columns:
+            return
+
         widths = {}
-        for i, col in enumerate(self.model.visible_columns()):
-            widths[col] = header.sectionSize(i)
-        if widths != self._last_saved_widths:
-            self._last_saved_widths = widths.copy()
-            self.state.set_column_widths(self.current_table, widths)
+        for col in self._configured_columns[:self._col_window_end]:
+            widths[col] = self.tree.column(col, "width")
+
+        if widths != self.last_saved_widths:
+            self.last_saved_widths = widths.copy()
+            if self._resize_timer:
+                self.parent.after_cancel(self._resize_timer)
+            self._resize_timer = self.parent.after(
+                RESIZE_SAVE_DELAY,
+                lambda: self.state.set_column_widths(self.current_table, widths),
+            )
+
+    # ------------------------------------------------------------------
+    # Inline editing
+    # ------------------------------------------------------------------
+
+    def cancel_edit(self, event=None):
+        """Discard the active inline editor without saving changes."""
+        if self.active_editor:
+            self.active_editor.destroy()
+            self.active_editor = None
+            self.editing_data = {}
+
+    def commit_editor(self, event=None, reload_data=True):
+        """Save the active editor value to the database and push an undo entry.
+
+        Args:
+            reload_data: If True, fully reload the table. If False, update
+                the Treeview row in-place (used during keyboard navigation).
+        """
+        if not self.active_editor:
+            return
+        new_val = self.active_editor.get()
+        editor = self.active_editor
+        self.active_editor = None
+        data = self.editing_data
+        self.editing_data = {}
+        editor.destroy()
+
+        col_name = data['col_name']
+        pk_val = data['pk_val']
+        old_val = data['old_val']
+        fk_options = data['fk_options']
+
+        db_val = new_val
+        undo_old_val = old_val
+
+        if fk_options:
+            if new_val in fk_options:
+                db_val = fk_options[new_val]
+            else:
+                return
+            undo_old_val = fk_options.get(old_val, old_val)
+
+        if str(new_val) != str(old_val):
+            self.state.push_undo(self.current_table, col_name, undo_old_val, db_val, pk_val)
+            self.on_change()
+            self.db.update_cell(self.current_table, col_name, db_val, self.tree["columns"][0], pk_val)
+            if reload_data:
+                self.load_table_data()
+            else:
+                new_values = list(data['values'])
+                new_values[data['index']] = new_val
+                self.tree.item(data['item'], values=tuple(new_values))
+
+    def on_editor_navigate(self, event):
+        """Handle Tab/Arrow/Enter navigation while the inline editor is open.
+
+        Commits the current edit and opens the editor in the adjacent cell.
+        Tab moves horizontally (wrapping to next/prev row), Arrow keys and
+        Enter move vertically.
+        """
+        if not self.editing_data:
+            return
+        item = self.editing_data['item']
+        index = self.editing_data['index']
+        self.commit_editor(reload_data=False)
+
+        next_item = item
+        next_col_index = index
+
+        if event.keysym == 'Tab':
+            if event.state & 1:  # Shift+Tab
+                if index > 1:
+                    next_col_index -= 1
+                elif (p := self.tree.prev(item)):
+                    next_item = p
+                    next_col_index = len(self.tree['columns']) - 1
+            else:
+                if index < len(self.tree['columns']) - 1:
+                    next_col_index += 1
+                elif (n := self.tree.next(item)):
+                    next_item = n
+                    next_col_index = 1
+        elif event.keysym == 'Up' and (p := self.tree.prev(item)):
+            next_item = p
+        elif event.keysym in ('Down', 'Return') and (n := self.tree.next(item)):
+            next_item = n
+
+        self.tree.selection_set(next_item)
+        self.edit_cell(next_item, f"#{next_col_index + 1}")
+        return "break"
+
+    def edit_cell(self, item, col_id):
+        """Open an inline editor (Entry or Combobox) on the given cell.
+
+        In lookup mode, FK columns get a Combobox with display names mapped
+        back to raw IDs on commit.
+        """
+        if not item or not col_id:
+            return
+        index = int(col_id.replace('#', '')) - 1
+        if index == 0:
+            return
+        if self.active_editor:
+            self.commit_editor()
+
+        col_name = self.tree["columns"][index]
+        values = self.tree.item(item, "values")
+        pk_val = values[0]
+        old_val = values[index]
+
+        fk_options = None
+        if self.lookup_mode and col_name.startswith("fkID"):
+            fk_options = self.db.get_fk_options(col_name)
+
+        x, y, w, h = self.tree.bbox(item, col_id)
+        self.tree.see(item)
+
+        if fk_options:
+            self.active_editor = ttk.Combobox(self.parent, values=list(fk_options.keys()))
+        else:
+            self.active_editor = tk.Entry(self.parent, relief="flat")
+
+        self.active_editor.place(x=x, y=y, width=w, height=h)
+        self.active_editor.insert(0, old_val)
+        if not isinstance(self.active_editor, ttk.Combobox):
+            self.active_editor.select_range(0, tk.END)
+        self.active_editor.focus_set()
+
+        self.editing_data = {
+            'col_name': col_name, 'pk_val': pk_val, 'old_val': old_val,
+            'fk_options': fk_options, 'item': item, 'index': index, 'values': values,
+        }
+
+        bindings = {
+            "<Return>": self.on_editor_navigate,
+            "<FocusOut>": lambda e: self.commit_editor(),
+            "<Escape>": self.cancel_edit,
+            "<Tab>": self.on_editor_navigate,
+            "<Up>": self.on_editor_navigate,
+            "<Down>": self.on_editor_navigate,
+        }
+        for key, handler in bindings.items():
+            self.active_editor.bind(key, handler)
 
     # ------------------------------------------------------------------
     # Row operations
     # ------------------------------------------------------------------
 
     def add_row(self):
+        """Add a new empty row to the current table."""
         if not self.current_table or not self.db:
             return
         try:
-            all_cols = self.model.all_columns()
-            if not all_cols:
+            if not self.all_columns:
                 return
-            new_id = self.db.get_max_id(self.current_table, all_cols[0])
-            row_values = [new_id] + [""] * (len(all_cols) - 1)
-            self.db.insert_row(self.current_table, all_cols, row_values)
 
-            self.state.push_action({
-                "type": "row_op", "mode": "insert",
-                "table": self.current_table, "pk_col": all_cols[0],
-                "columns": all_cols,
+            new_id = self.db.get_max_id(self.current_table, self.all_columns[0])
+            row_values = [new_id] + [""] * (len(self.all_columns) - 1)
+            self.db.insert_row(self.current_table, self.all_columns, row_values)
+
+            action = {
+                "type": "row_op",
+                "mode": "insert",
+                "table": self.current_table,
+                "pk_col": self.all_columns[0],
+                "columns": self.all_columns,
                 "rows": [{"pk": new_id, "data": row_values}],
-            })
-            self.data_changed.emit()
+            }
+            self.state.push_action(action)
+            self.on_change()
 
-            start = 0
-            sc = self.sort_state["column"]
-            if not sc or (sc == all_cols[0] and not self.sort_state["reverse"]):
-                total = self.db.get_row_count(
-                    self.current_table, self.search_term, self.lookup_mode)
-                if total > self.model.page_size:
-                    start = total - self.model.page_size
-            self.load_table_data(start_offset=start)
+            # Jump to bottom if sorting by PK ASC
+            start_offset = 0
+            if not self.sort_state["column"] or (
+                self.sort_state["column"] == self.all_columns[0] and not self.sort_state["reverse"]
+            ):
+                total_rows = self.db.get_row_count(self.current_table, self.search_term, self.lookup_mode)
+                if total_rows > self.page_size:
+                    start_offset = total_rows - self.page_size
 
-            # Select new row and start editing
-            for r in range(self.model.rowCount()):
-                if str(self.model.pk_value(r)) == str(new_id):
-                    idx = self.model.index(r, 1)
-                    self.table.setCurrentIndex(idx)
-                    self.table.scrollTo(idx)
-                    self.table.edit(idx)
+            self.load_table_data(start_offset=start_offset)
+
+            # Select and edit the new row
+            for item in self.tree.get_children():
+                vals = self.tree.item(item, "values")
+                if vals and str(vals[0]) == str(new_id):
+                    self.tree.selection_set(item)
+                    self.tree.see(item)
+                    self.tree.focus(item)
+                    if len(self.tree["columns"]) > 1:
+                        self.edit_cell(item, "#2")
                     break
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            messagebox.showerror("Error", str(e))
 
     def duplicate_row(self):
-        rows = self.table.selectionModel().selectedRows()
-        if not rows:
+        """Duplicate selected row(s) with new auto-incremented IDs."""
+        selection = self.tree.selection()
+        if not selection:
             return
+
+        added_rows = []
         try:
             columns = self.db.get_columns(self.current_table)
             pk_col = columns[0]
-            pk_vals = [self.model.pk_value(idx.row()) for idx in rows]
-            rows_map = self.db.get_rows_data(
-                self.current_table, pk_col, pk_vals)
+
+            # Batch fetch source rows and compute IDs once
+            pk_vals = [self.tree.item(item, "values")[0] for item in selection]
+            rows_map = self.db.get_rows_data(self.current_table, pk_col, pk_vals)
             next_id = self.db.get_max_id(self.current_table, pk_col)
 
-            added = []
-            for pk in pk_vals:
-                src = rows_map.get(pk)
-                if not src:
+            for pk_val in pk_vals:
+                source_data = rows_map.get(pk_val)
+                if not source_data:
                     continue
-                data = list(src)
-                data[0] = next_id
-                self.db.insert_row(self.current_table, columns, data)
-                added.append({"pk": next_id, "data": data})
+                row_data = list(source_data)
+                row_data[0] = next_id
+                self.db.insert_row(self.current_table, columns, row_data)
+                added_rows.append({"pk": next_id, "data": row_data})
                 next_id += 1
 
-            if added:
-                self.state.push_action({
-                    "type": "row_op", "mode": "insert",
-                    "table": self.current_table, "pk_col": pk_col,
-                    "columns": columns, "rows": added,
-                })
-                self.data_changed.emit()
+            if added_rows:
+                action = {
+                    "type": "row_op",
+                    "mode": "insert",
+                    "table": self.current_table,
+                    "pk_col": pk_col,
+                    "columns": columns,
+                    "rows": added_rows,
+                }
+                self.state.push_action(action)
+                self.on_change()
 
-                start = 0
-                sc = self.sort_state["column"]
-                if not sc or (sc == pk_col and not self.sort_state["reverse"]):
-                    total = self.db.get_row_count(
-                        self.current_table, self.search_term, self.lookup_mode)
-                    if total > self.model.page_size:
-                        start = total - self.model.page_size
-                self.load_table_data(start_offset=start)
+                # Jump to bottom if sorting by PK ASC
+                start_offset = 0
+                if not self.sort_state["column"] or (
+                    self.sort_state["column"] == pk_col and not self.sort_state["reverse"]
+                ):
+                    total_rows = self.db.get_row_count(self.current_table, self.search_term, self.lookup_mode)
+                    if total_rows > self.page_size:
+                        start_offset = total_rows - self.page_size
 
-                last_pk = added[-1]["pk"]
-                for r in range(self.model.rowCount()):
-                    if str(self.model.pk_value(r)) == str(last_pk):
-                        idx = self.model.index(r, 0)
-                        self.table.setCurrentIndex(idx)
-                        self.table.scrollTo(idx)
+                self.load_table_data(start_offset=start_offset)
+
+                # Select the last duplicated row
+                last_new_id = added_rows[-1]["pk"]
+                for item in self.tree.get_children():
+                    vals = self.tree.item(item, "values")
+                    if vals and str(vals[0]) == str(last_new_id):
+                        self.tree.selection_set(item)
+                        self.tree.see(item)
+                        self.tree.focus(item)
                         break
+
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            messagebox.showerror("Error", str(e))
 
     def delete_row(self):
-        rows = self.table.selectionModel().selectedRows()
-        if not rows:
+        """Delete selected row(s) after confirmation."""
+        selection = self.tree.selection()
+        if not selection:
             return
-        n = len(rows)
-        if QMessageBox.question(
-            self, "Confirm", f"Delete {n} row(s)?",
-            QMessageBox.Yes | QMessageBox.No,
-        ) != QMessageBox.Yes:
+        if not messagebox.askyesno("Confirm", f"Delete {len(selection)} row(s)?"):
             return
 
         columns = self.db.get_columns(self.current_table)
         pk_col = columns[0]
-        pk_vals = [self.model.pk_value(idx.row()) for idx in rows]
-        rows_map = self.db.get_rows_data(self.current_table, pk_col, pk_vals)
+        pk_vals = [self.tree.item(item, "values")[0] for item in selection]
 
-        deleted = []
+        # Capture data for undo before deleting (batch fetch)
+        rows_map = self.db.get_rows_data(self.current_table, pk_col, pk_vals)
+        deleted_rows = []
         for pk in pk_vals:
             data = rows_map.get(pk)
             if data:
-                deleted.append({"pk": pk, "data": list(data)})
+                deleted_rows.append({"pk": pk, "data": list(data)})
 
         self.db.delete_rows(self.current_table, pk_col, pk_vals)
 
-        if deleted:
-            self.state.push_action({
-                "type": "row_op", "mode": "delete",
-                "table": self.current_table, "pk_col": pk_col,
-                "columns": columns, "rows": deleted,
-            })
-        self.data_changed.emit()
+        if deleted_rows:
+            action = {
+                "type": "row_op",
+                "mode": "delete",
+                "table": self.current_table,
+                "pk_col": pk_col,
+                "columns": columns,
+                "rows": deleted_rows,
+            }
+            self.state.push_action(action)
+
+        self.on_change()
         self.load_table_data()
 
     # ------------------------------------------------------------------
     # Context menus
     # ------------------------------------------------------------------
 
-    def _show_row_menu(self, pos):
-        index = self.table.indexAt(pos)
-        if not index.isValid():
-            return
-        if index not in self.table.selectionModel().selectedIndexes():
-            self.table.selectRow(index.row())
+    def show_context_menu(self, event):
+        """Show right-click menu with Duplicate/Delete row actions."""
+        row_id = self.tree.identify_row(event.y)
+        if row_id:
+            if row_id not in self.tree.selection():
+                self.tree.selection_set(row_id)
 
-        n = len(self.table.selectionModel().selectedRows())
-        menu = QMenu(self)
-        menu.addAction(
-            "Duplicate Rows" if n > 1 else "Duplicate Row",
-            self.duplicate_row)
-        menu.addAction(
-            "Delete Rows" if n > 1 else "Delete Row",
-            self.delete_row)
-        menu.exec(self.table.viewport().mapToGlobal(pos))
+            selection_count = len(self.tree.selection())
+            self.row_menu.entryconfig(0, label="Duplicate Rows" if selection_count > 1 else "Duplicate Row")
+            self.row_menu.entryconfig(1, label="Delete Rows" if selection_count > 1 else "Delete Row")
+            self.row_menu.post(event.x_root, event.y_root)
 
-    def _show_column_menu(self, pos):
-        logical = self.table.horizontalHeader().logicalIndexAt(pos)
-        col = self.model.column_name(logical)
-        if not col:
-            return
-        all_cols = self.model.all_columns()
-        if all_cols and col == all_cols[0]:
-            return
-        menu = QMenu(self)
-        menu.addAction("Hide Column", lambda: self._hide_column(col))
-        menu.exec(self.table.horizontalHeader().mapToGlobal(pos))
+    def on_right_click(self, event):
+        """Handle right-click on column headers to show hide menu."""
+        region = self.tree.identify_region(event.x, event.y)
+        if region == "heading":
+            col_id = self.tree.identify_column(event.x)
+            if col_id:
+                index = int(col_id.replace('#', '')) - 1
+                if 0 <= index < len(self.tree["columns"]):
+                    self.clicked_column = self.tree["columns"][index]
+                    if self.clicked_column != self.all_columns[0]:
+                        self.column_menu.post(event.x_root, event.y_root)
 
-    def _hide_column(self, col_name):
-        if not self.current_table:
+    def hide_column(self):
+        """Hide the clicked column."""
+        if not hasattr(self, 'clicked_column') or not self.current_table:
             return
-        visible = self.state.get_visible_columns(self.current_table)
-        if visible is None:
-            visible = self.model.all_columns()
-        if col_name in visible:
-            visible.remove(col_name)
-            self.state.set_visible_columns(self.current_table, visible)
+
+        visible_columns = self.state.get_visible_columns(self.current_table)
+        if visible_columns is None:
+            visible_columns = self.all_columns.copy()
+
+        if self.clicked_column in visible_columns:
+            visible_columns.remove(self.clicked_column)
+            self.state.set_visible_columns(self.current_table, visible_columns)
             self.load_table_data()
 
     # ------------------------------------------------------------------
-    # Column accessors (used by column manager dialog)
+    # Column accessors
     # ------------------------------------------------------------------
 
     def get_all_columns(self):
-        return self.model.all_columns()
+        """Get all columns for the current table (including hidden ones)."""
+        return self.all_columns.copy() if self.all_columns else []
 
     def get_visible_columns(self):
-        return self.model.visible_columns()
+        """Get currently visible columns."""
+        return list(self.tree["columns"]) if self.tree["columns"] else []
 
     def set_visible_columns(self, columns):
+        """Set which columns should be visible."""
         if not self.current_table:
             return
         self.state.set_visible_columns(self.current_table, columns)
         self.load_table_data()
 
-    def select_all_rows(self):
-        self.table.selectAll()
+    def select_all_rows(self, event=None):
+        """Select all rows in the table."""
+        items = self.tree.get_children()
+        if items:
+            self.tree.selection_set(items)
+        return "break"

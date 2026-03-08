@@ -7,21 +7,13 @@ manages file operations, and handles application lifecycle.
 
 import gc
 import os
-
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import (
-    QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-    QMainWindow, QMenu, QMessageBox, QPushButton, QSplitter,
-    QStackedWidget, QToolButton, QVBoxLayout, QWidget,
-)
+import sys
+import tkinter as tk
+from tkinter import filedialog, ttk, messagebox, simpledialog
 
 from core.db_manager import DatabaseManager
 from core.app_state import AppState
-from core.constants import (
-    APP_NAME, APP_VERSION, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH,
-    SEARCH_DEBOUNCE_DELAY,
-)
+from core.constants import APP_NAME, APP_VERSION, SEARCH_DEBOUNCE_DELAY
 import core.converter as converter
 import core.csv_io as csv_io
 from ui.welcome_screen import WelcomeScreen
@@ -32,299 +24,273 @@ from ui.column_manager_dialog import ColumnManagerDialog
 from ui.startlist_view import StartlistView
 
 
-class PCMDatabaseTools(QMainWindow):
-    """Main application window for PCM Database Tools."""
+class PCMDatabaseTools:
+    """Main application controller for PCM Database Tools.
 
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
+    Manages:
+        - Home screen with tool launcher tiles
+        - Database editor (CDB loading, table editing, CSV import/export)
+        - Startlist generator (full-frame view)
+        - Undo/redo coordination
+        - Application settings persistence
+    """
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title(f"{APP_NAME} v{APP_VERSION}")
         self.state = AppState("session_config.json")
-
-        # Window geometry
-        size = self.state.settings.get("window_size", "1200x800")
-        try:
-            w, h = (int(x) for x in size.split("x")[:2])
-        except (ValueError, IndexError):
-            w, h = DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT
-        self.resize(w, h)
+        self.normal_geometry = self.state.settings.get("window_size", "1200x800")
+        self.root.geometry(self.normal_geometry)
 
         if self.state.settings.get("is_maximized", False):
-            self.showMaximized()
+            try:
+                if sys.platform.startswith('win'):
+                    self.root.state('zoomed')
+                else:
+                    self.root.attributes('-zoomed', True)
+            except (tk.TclError, AttributeError):
+                pass
 
+        self.root.bind("<Configure>", self.track_window_size)
         self.db = None
         self.temp_path = None
-        self.all_tables = []
         self.current_table = None
         self.unsaved_changes = False
+        self.search_timer = None
 
-        self._search_timer = QTimer(self)
-        self._search_timer.setSingleShot(True)
-        self._search_timer.setInterval(SEARCH_DEBOUNCE_DELAY)
-        self._search_timer.timeout.connect(self._execute_search)
+        self._setup_ui()
+        self.root.bind("<Control-z>", lambda e: self.undo())
+        self.root.bind("<Control-y>", lambda e: self.redo())
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        self._build_ui()
-
-        QShortcut(QKeySequence.Undo, self, self.undo)
-        QShortcut(QKeySequence.Redo, self, self.redo)
+    def track_window_size(self, event):
+        """Track normal (non-maximized) window geometry for session persistence."""
+        try:
+            if sys.platform.startswith('win'):
+                is_maximized = self.root.state() == 'zoomed'
+            else:
+                is_maximized = self.root.attributes('-zoomed')
+            if not is_maximized:
+                self.normal_geometry = self.root.geometry()
+        except (tk.TclError, AttributeError):
+            pass
 
     # ==================================================================
     # UI Setup
     # ==================================================================
 
-    def _build_ui(self):
-        self.stack = QStackedWidget()
-        self.setCentralWidget(self.stack)
+    def _setup_ui(self):
+        # -- Home screen frame --
+        self.welcome_frame = tk.Frame(self.root, bg="#f0f0f0")
+        self.welcome_screen = WelcomeScreen(
+            self.welcome_frame, self.state,
+            load_callback=self.load_cdb,
+            startlist_callback=self.show_startlist,
+        )
 
-        # Page 0: Welcome screen
-        self.welcome_screen = WelcomeScreen(self.state)
-        self.welcome_screen.load_requested.connect(self.load_cdb)
-        self.welcome_screen.startlist_requested.connect(self.show_startlist)
-        self.stack.addWidget(self.welcome_screen)
+        # -- Editor frame --
+        self.editor_frame = tk.Frame(self.root)
+        self._setup_editor_toolbar()
+        self._setup_editor_content()
 
-        # Page 1: Editor
-        editor_page = QWidget()
-        editor_layout = QVBoxLayout(editor_page)
-        editor_layout.setContentsMargins(0, 0, 0, 0)
-        editor_layout.setSpacing(0)
-
-        self._build_toolbar(editor_layout)
-
-        splitter = QSplitter(Qt.Horizontal)
-        self.sidebar = Sidebar(self.state)
-        self.sidebar.table_selected.connect(self._on_table_select)
-        self.sidebar.setFixedWidth(220)
-        splitter.addWidget(self.sidebar)
-
-        self.table_view = TableView(self.state)
-        self.table_view.data_changed.connect(self._on_data_change)
-        self.table_view.selection_changed.connect(self._on_selection_change)
-        splitter.addWidget(self.table_view)
-        splitter.setStretchFactor(1, 1)
-
-        editor_layout.addWidget(splitter, 1)
-        self.stack.addWidget(editor_page)
-
-        # Page 2: Startlist
-        self.startlist_view = StartlistView()
-        self.startlist_view.go_home.connect(self.show_home)
-        self.stack.addWidget(self.startlist_view)
-
-        # Status bar
-        self.status_label = QLabel("Ready")
-        self.statusBar().addWidget(self.status_label, 1)
-        self.selection_label = QLabel("")
-        self.statusBar().addPermanentWidget(self.selection_label)
+        # -- Startlist frame --
+        self.startlist_frame = tk.Frame(self.root)
+        self.startlist_view = StartlistView(
+            self.startlist_frame, self.root, go_home=self.show_home,
+        )
 
         self.show_home()
 
-    def _build_toolbar(self, parent_layout):
-        toolbar = QWidget()
-        toolbar.setObjectName("editorToolbar")
-        toolbar.setStyleSheet(
-            "#editorToolbar { background: #f0f0f0;"
-            "  border-bottom: 1px solid #ccc; }"
-            "#editorToolbar QPushButton, #editorToolbar QToolButton {"
-            "  padding: 4px 10px; }"
-        )
-        tb = QHBoxLayout(toolbar)
-        tb.setContentsMargins(8, 8, 8, 8)
+    def _setup_editor_toolbar(self):
+        toolbar = tk.Frame(self.editor_frame, pady=10, bg="#f0f0f0")
+        toolbar.pack(side=tk.TOP, fill=tk.X)
 
-        # Left buttons
-        close_btn = QPushButton("\u2190 Close CDB")
-        close_btn.clicked.connect(self.close_cdb)
-        tb.addWidget(close_btn)
+        tk.Button(toolbar, text="\u2190 Close CDB", command=self.close_cdb).pack(side=tk.LEFT, padx=5)
+        tk.Button(toolbar, text="Open CDB", command=self.load_cdb, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(toolbar, text="Save As...", command=self.save_as_cdb, width=10).pack(side=tk.LEFT, padx=5)
 
-        open_btn = QPushButton("Open CDB")
-        open_btn.clicked.connect(lambda: self.load_cdb(""))
-        tb.addWidget(open_btn)
-
-        save_btn = QPushButton("Save As\u2026")
-        save_btn.clicked.connect(self.save_as_cdb)
-        tb.addWidget(save_btn)
-
-        # Tools menu button
-        self.tools_button = QToolButton()
-        self.tools_button.setText("Tools")
-        self.tools_button.setPopupMode(QToolButton.InstantPopup)
-        self._build_tools_menu()
-        tb.addWidget(self.tools_button)
-
-        self.undo_btn = QPushButton("\u21b6 Undo")
-        self.undo_btn.setEnabled(False)
-        self.undo_btn.clicked.connect(self.undo)
-        tb.addWidget(self.undo_btn)
-
-        self.redo_btn = QPushButton("\u21b7 Redo")
-        self.redo_btn.setEnabled(False)
-        self.redo_btn.clicked.connect(self.redo)
-        tb.addWidget(self.redo_btn)
-
-        add_btn = QPushButton("Add Row")
-        add_btn.clicked.connect(lambda: self.table_view.add_row())
-        tb.addWidget(add_btn)
-
-        del_btn = QPushButton("Remove Row")
-        del_btn.clicked.connect(lambda: self.table_view.delete_row())
-        tb.addWidget(del_btn)
-
-        clear_btn = QPushButton("Clear Table")
-        clear_btn.clicked.connect(self.clear_table)
-        tb.addWidget(clear_btn)
-
-        tb.addStretch()
-
-        # Right side: columns, lookup, search
-        col_btn = QPushButton("Columns")
-        col_btn.clicked.connect(self.open_column_manager)
-        tb.addWidget(col_btn)
-
-        self.lookup_btn = QPushButton("Lookup: OFF")
-        self.lookup_btn.setCheckable(True)
-        self.lookup_btn.setChecked(
-            self.state.settings.get("lookup_mode", False))
-        if self.lookup_btn.isChecked():
-            self.lookup_btn.setText("Lookup: ON")
-        self.lookup_btn.toggled.connect(self._on_lookup_toggled)
-        tb.addWidget(self.lookup_btn)
-
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("Search\u2026")
-        self.search_edit.setClearButtonEnabled(True)
-        self.search_edit.setFixedWidth(300)
-        self.search_edit.textChanged.connect(
-            lambda: self._search_timer.start())
-        tb.addWidget(self.search_edit)
-
-        parent_layout.addWidget(toolbar)
-
-    def _build_tools_menu(self):
-        menu = QMenu(self)
+        self.tools_btn = tk.Menubutton(toolbar, text="Tools", relief="raised", width=10)
+        self.tools_menu = tk.Menu(self.tools_btn, tearoff=0)
 
         # Career submenu
-        self.career_menu = menu.addMenu("Career")
-        self.career_menu.addAction(
-            "Change team budget\u2026", self.change_team_budget)
-        self.career_menu.setEnabled(False)
+        self.career_menu = tk.Menu(self.tools_menu, tearoff=0)
+        self.career_menu.add_command(label="Change team budget...", command=self.change_team_budget)
+        self.tools_menu.add_cascade(label="Career", menu=self.career_menu)
 
         # Export submenu
-        export_menu = menu.addMenu("Export")
-        export_menu.addAction(
-            "Export table to CSV\u2026", self.export_csv)
-        export_menu.addAction(
-            "Import table from CSV\u2026", self.import_csv_table)
-        export_menu.addSeparator()
-        export_menu.addAction(
-            "Export all tables to folder\u2026", self.export_all_csv)
-        export_menu.addAction(
-            "Import all tables from folder\u2026", self.import_all_csv)
+        self.export_menu = tk.Menu(self.tools_menu, tearoff=0)
+        self.export_menu.add_command(label="Export table to CSV...", command=self.export_csv)
+        self.export_menu.add_command(label="Import table from CSV...", command=self.import_csv_table)
+        self.export_menu.add_separator()
+        self.export_menu.add_command(label="Export all tables to folder...", command=self.export_all_csv)
+        self.export_menu.add_command(label="Import all tables from folder...", command=self.import_all_csv)
+        self.tools_menu.add_cascade(label="Export", menu=self.export_menu)
 
-        self.tools_button.setMenu(menu)
+        self.tools_btn.config(menu=self.tools_menu)
+
+        self.undo_btn = tk.Button(toolbar, text="↶ Undo", command=self.undo, state="disabled")
+        self.undo_btn.pack(side=tk.LEFT, padx=5)
+        self.redo_btn = tk.Button(toolbar, text="↷ Redo", command=self.redo, state="disabled")
+        self.redo_btn.pack(side=tk.LEFT, padx=5)
+        tk.Button(toolbar, text="Add Row", command=lambda: self.table_view.add_row(), width=12).pack(side=tk.LEFT, padx=5)
+        tk.Button(toolbar, text="Remove Row", command=lambda: self.table_view.delete_row(), width=12).pack(side=tk.LEFT, padx=5)
+        tk.Button(toolbar, text="Clear Table", command=self.clear_table, width=12).pack(side=tk.LEFT, padx=5)
+
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", self.on_search)
+        self._create_search_box(toolbar, self.search_var, 40).pack(side=tk.RIGHT, padx=15)
+        self.lookup_var = tk.BooleanVar(value=self.state.settings.get("lookup_mode", False))
+        self.lookup_btn = tk.Button(
+            toolbar,
+            text="Lookup: ON" if self.lookup_var.get() else "Lookup: OFF",
+            command=self.toggle_lookup, width=12,
+        )
+        self.lookup_btn.pack(side=tk.RIGHT, padx=5)
+        tk.Button(toolbar, text="Columns", command=self.open_column_manager, width=10).pack(side=tk.RIGHT, padx=5)
+        self.tools_btn.pack(side=tk.RIGHT, padx=5)
+
+    def _setup_editor_content(self):
+        self.pw = tk.PanedWindow(self.editor_frame, orient=tk.HORIZONTAL, sashwidth=4, bg="#ccc")
+        self.pw.pack(expand=True, fill=tk.BOTH)
+
+        sidebar_container = tk.Frame(self.pw, bg="#e1e1e1")
+        self.pw.add(sidebar_container)
+        self.sidebar = Sidebar(sidebar_container, self.state, self.on_table_select)
+
+        self.table_frame = tk.Frame(self.pw)
+        self.pw.add(self.table_frame)
+        self.table_view = TableView(self.table_frame, self.state, self.on_data_change)
+
+        status_bar = tk.Frame(self.editor_frame, bd=1, relief="sunken")
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status = tk.Label(status_bar, text="Ready", anchor="w")
+        self.status.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.selection_label = tk.Label(status_bar, text="", anchor="e", padx=10)
+        self.selection_label.pack(side=tk.RIGHT)
+
+        self.table_view.tree.bind("<<TreeviewSelect>>", self._on_selection_change)
 
     # ==================================================================
     # Navigation
     # ==================================================================
 
     def show_home(self):
-        self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
-        self.welcome_screen.refresh_recents()
-        self.stack.setCurrentIndex(0)
+        """Show the home screen, hiding all other views."""
+        self.editor_frame.pack_forget()
+        self.startlist_frame.pack_forget()
+        self.root.title(f"{APP_NAME} v{APP_VERSION}")
+        self.welcome_screen.show()
 
     def show_startlist(self):
-        self.setWindowTitle(
-            f"{APP_NAME} v{APP_VERSION} \u2014 Startlist Generator")
-        self.stack.setCurrentIndex(2)
+        """Show the startlist generator view."""
+        self.welcome_screen.hide()
+        self.editor_frame.pack_forget()
+        self.root.title(f"{APP_NAME} v{APP_VERSION} - Startlist Generator")
+        self.startlist_frame.pack(fill=tk.BOTH, expand=True)
 
     # ==================================================================
     # Search & Lookup
     # ==================================================================
 
-    def _execute_search(self):
-        self.table_view.set_search_term(self.search_edit.text())
+    def on_search(self, *args):
+        """Debounced search handler — delays execution until typing stops."""
+        if self.search_timer:
+            self.root.after_cancel(self.search_timer)
+        self.search_timer = self.root.after(SEARCH_DEBOUNCE_DELAY, self._execute_search)
 
-    def _on_lookup_toggled(self, checked):
-        self.lookup_btn.setText("Lookup: ON" if checked else "Lookup: OFF")
-        self.table_view.set_lookup_mode(checked)
+    def _execute_search(self):
+        self.table_view.set_search_term(self.search_var.get())
+        self.search_timer = None
+
+    def toggle_lookup(self):
+        """Toggle FK lookup mode between showing display names and raw IDs."""
+        new_state = not self.lookup_var.get()
+        self.lookup_var.set(new_state)
+        self.lookup_btn.config(text="Lookup: ON" if new_state else "Lookup: OFF")
+        self.table_view.set_lookup_mode(new_state)
 
     # ==================================================================
     # Undo / Redo
     # ==================================================================
 
-    def _on_data_change(self):
+    def on_data_change(self):
+        """Mark the session as having unsaved changes and refresh undo/redo buttons."""
         self.unsaved_changes = True
         self._update_btns()
 
     def undo(self):
+        """Undo the last edit (cell change or row operation)."""
         action = self.state.undo()
         if not action:
             return
+
         if action.get("type") == "row_op":
             self._handle_row_op(action, is_undo=True)
         else:
-            pk_col = self.table_view.model.all_columns()
-            if pk_col:
-                self.db.update_cell(
-                    action["table"], action["column"], action["old"],
-                    pk_col[0], action["pk"])
+            self.db.update_cell(
+                action["table"], action["column"], action["old"],
+                self.table_view.tree["columns"][0], action["pk"],
+            )
             self.unsaved_changes = True
             self.table_view.load_table_data()
         self._update_btns()
 
     def redo(self):
+        """Redo the last undone edit."""
         action = self.state.redo()
         if not action:
             return
+
         if action.get("type") == "row_op":
             self._handle_row_op(action, is_undo=False)
         else:
-            pk_col = self.table_view.model.all_columns()
-            if pk_col:
-                self.db.update_cell(
-                    action["table"], action["column"], action["new"],
-                    pk_col[0], action["pk"])
+            self.db.update_cell(
+                action["table"], action["column"], action["new"],
+                self.table_view.tree["columns"][0], action["pk"],
+            )
             self.unsaved_changes = True
             self.table_view.load_table_data()
         self._update_btns()
 
     def _handle_row_op(self, action, is_undo):
+        """Apply or reverse a row insert/delete operation for undo/redo."""
         table = action["table"]
         mode = action["mode"]
         rows = action["rows"]
         pk_col = action["pk_col"]
         columns = action["columns"]
 
-        effective = (
+        effective_op = (
             "delete"
             if (mode == "insert" and is_undo) or (mode == "delete" and not is_undo)
             else "insert"
         )
+
         try:
-            if effective == "delete":
+            if effective_op == "delete":
                 self.db.delete_rows(table, pk_col, [r["pk"] for r in rows])
             else:
                 for r in rows:
                     self.db.insert_row(table, columns, r["data"])
+
             self.unsaved_changes = True
             self.table_view.load_table_data()
         except Exception as e:
-            op = "undo" if is_undo else "redo"
-            QMessageBox.critical(
-                self, "Error", f"Failed to {op} operation: {e}")
+            operation = "undo" if is_undo else "redo"
+            messagebox.showerror("Error", f"Failed to {operation} operation: {str(e)}")
 
     def _update_btns(self):
-        self.undo_btn.setEnabled(bool(self.state.undo_stack))
-        self.redo_btn.setEnabled(bool(self.state.redo_stack))
+        self.undo_btn.config(state="normal" if self.state.undo_stack else "disabled")
+        self.redo_btn.config(state="normal" if self.state.redo_stack else "disabled")
 
     # ==================================================================
     # CDB File Operations
     # ==================================================================
 
     def close_cdb(self):
+        """Close the current database and return to the home screen."""
         if self.unsaved_changes:
-            if QMessageBox.question(
-                self, "Unsaved Changes",
-                "You have unsaved changes. Are you sure you want to close?",
-                QMessageBox.Yes | QMessageBox.No,
-            ) != QMessageBox.Yes:
+            if not messagebox.askyesno("Unsaved Changes", "You have unsaved changes. Are you sure you want to close?"):
                 return
         if self.db:
             self.db.close()
@@ -332,17 +298,16 @@ class PCMDatabaseTools(QMainWindow):
         self.current_table = None
         self.unsaved_changes = False
         self.table_view.set_db(None)
-        self.career_menu.setEnabled(False)
+        self.tools_menu.entryconfig("Career", state="disabled")
         gc.collect()
         self.show_home()
 
-    def load_cdb(self, path=""):
+    def load_cdb(self, path=None):
+        """Open a CDB file, convert to SQLite, and show the editor view."""
         if not path:
-            path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Open CDB file",
-                self.state.settings.get("last_path", ""),
-                "CDB files (*.cdb)",
+            path = filedialog.askopenfilename(
+                initialdir=self.state.settings.get("last_path", ""),
+                filetypes=[("CDB files", "*.cdb")],
             )
         if not path:
             return
@@ -353,177 +318,188 @@ class PCMDatabaseTools(QMainWindow):
 
         def on_success(temp_path):
             self.temp_path = temp_path
-            self.db = DatabaseManager(temp_path)
+            self.db = DatabaseManager(self.temp_path)
             self.all_tables = self.db.get_table_list()
             self.sidebar.set_tables(self.all_tables)
             self.state.settings["last_path"] = os.path.dirname(path)
             self.table_view.set_db(self.db)
-            self.table_view.set_lookup_mode(self.lookup_btn.isChecked())
+            self.table_view.set_lookup_mode(self.lookup_var.get())
             self.sidebar.select_first_favorite()
             self.state.add_recent(path)
             self._update_tools_menu_state()
-            self.setWindowTitle(
-                f"{APP_NAME} v{APP_VERSION} \u2014 {os.path.basename(path)}")
-            self.stack.setCurrentIndex(1)
-            self.status_label.setText(f"Loaded: {path}")
+            self.welcome_screen.hide()
+            self.startlist_frame.pack_forget()
+            self.root.title(f"{APP_NAME} v{APP_VERSION} - {os.path.basename(path)}")
+            self.editor_frame.pack(fill=tk.BOTH, expand=True)
+            self.status.config(text=f"Loaded: {path}")
             self.unsaved_changes = False
 
-        run_async(self, task, on_success, "Opening CDB\u2026")
+        run_async(self.root, task, on_success, "Opening CDB...")
 
     def save_as_cdb(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save CDB as", "", "CDB files (*.cdb)")
-        if not path:
-            return
-        gc.collect()
+        """Export the working SQLite database back to a CDB file."""
+        path = filedialog.asksaveasfilename(
+            defaultextension=".cdb",
+            filetypes=[("CDB files", "*.cdb")],
+        )
+        if path:
+            gc.collect()
 
-        def task():
-            converter.import_sqlite_to_cdb(self.temp_path, path)
+            def task():
+                converter.import_sqlite_to_cdb(self.temp_path, path)
 
-        def on_complete(_):
-            self.unsaved_changes = False
-            self.status_label.setText(f"Saved: {path}")
+            def on_complete(_):
+                self.unsaved_changes = False
+                self.status.config(text=f"Saved: {path}")
 
-        run_async(self, task, on_complete, "Saving CDB\u2026")
+            run_async(self.root, task, on_complete, "Saving CDB...")
 
     # ==================================================================
     # Tools Menu
     # ==================================================================
 
     def _update_tools_menu_state(self):
-        self.career_menu.setEnabled(
-            bool(self.db and "GAM_career_data" in self.all_tables))
+        """Enable or disable tool submenus based on available tables."""
+        if self.db and "GAM_career_data" in self.all_tables:
+            self.tools_menu.entryconfig("Career", state="normal")
+        else:
+            self.tools_menu.entryconfig("Career", state="disabled")
 
     def change_team_budget(self):
+        """Open dialog to change team budget from GAM_career_data table."""
         if not self.db:
             return
+
         try:
             cursor = self.db.conn.cursor()
+
             cursor.execute("PRAGMA table_info([GAM_career_data])")
             columns = [col[1] for col in cursor.fetchall()]
 
             if "value" not in columns:
-                QMessageBox.critical(
-                    self, "Error",
-                    "Column 'value' not found in GAM_career_data table")
+                messagebox.showerror("Error", "Column 'value' not found in GAM_career_data table")
                 return
 
-            cursor.execute(
-                "SELECT value FROM [GAM_career_data] WHERE UID = 1")
+            cursor.execute("SELECT value FROM [GAM_career_data] WHERE UID = 1")
             row = cursor.fetchone()
+
             if not row:
-                QMessageBox.critical(
-                    self, "Error",
-                    "No career data found (UID = 1 not found)")
+                messagebox.showerror("Error", "No career data found (UID = 1 not found in GAM_career_data)")
                 return
 
-            new_value, ok = QInputDialog.getInt(
-                self, "Change Team Budget",
+            current_value = row[0]
+
+            new_value = simpledialog.askinteger(
+                "Change Team Budget",
                 "Enter new team budget:",
-                value=int(row[0]), min=0)
-            if ok:
-                self.db.update_cell(
-                    "GAM_career_data", "value", new_value, "UID", 1)
+                initialvalue=current_value,
+                minvalue=0,
+                parent=self.root,
+            )
+
+            if new_value is not None:
+                self.db.update_cell("GAM_career_data", "value", new_value, "UID", 1)
                 self.unsaved_changes = True
+
                 if self.table_view.current_table == "GAM_career_data":
                     self.table_view.load_table_data()
-                self.status_label.setText(
-                    f"Team budget updated to {new_value}")
+
+                self.status.config(text=f"Team budget updated to {new_value}")
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to update budget: {e}")
+            messagebox.showerror("Error", f"Failed to update budget: {str(e)}")
 
     # ==================================================================
     # CSV Import / Export
     # ==================================================================
 
     def export_csv(self):
-        if not self.db or not self.table_view.current_table:
-            QMessageBox.warning(
-                self, "Warning", "No table selected.")
+        """Export the current table to a CSV file."""
+        if not self.db:
             return
-        table_name = self.table_view.current_table
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Export CSV", f"{table_name}.csv",
-            "CSV files (*.csv)")
+        if not self.table_view.current_table:
+            return messagebox.showwarning("Warning", "No table selected.")
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile=f"{self.table_view.current_table}.csv",
+        )
         if path:
+            table_name = self.table_view.current_table
             run_async(
-                self,
+                self.root,
                 lambda: csv_io.export_table(self.temp_path, table_name, path),
-                lambda _: self.status_label.setText(
-                    f"Exported table '{table_name}' to CSV"),
-                "Exporting CSV\u2026")
+                lambda _: self.status.config(text=f"Exported table '{table_name}' to CSV"),
+                "Exporting CSV...",
+            )
 
     def import_csv_table(self):
-        if not self.db or not self.table_view.current_table:
-            QMessageBox.warning(
-                self, "Warning", "No table selected.")
+        """Overwrite the current table's data from a CSV file."""
+        if not self.db:
             return
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Import CSV", "", "CSV files (*.csv)")
-        if not path:
-            return
-        table_name = self.table_view.current_table
-        if QMessageBox.question(
-            self, "Confirm Import",
-            f"This will overwrite data in '{table_name}' "
-            f"with data from the CSV. Continue?",
-            QMessageBox.Yes | QMessageBox.No,
-        ) != QMessageBox.Yes:
-            return
+        if not self.table_view.current_table:
+            return messagebox.showwarning("Warning", "No table selected.")
 
-        def on_complete(_):
-            self.unsaved_changes = True
-            self.table_view.load_table_data()
-            self.status_label.setText(
-                f"Imported CSV data into table '{table_name}'")
+        path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+        if path:
+            if not messagebox.askyesno(
+                "Confirm Import",
+                f"This will overwrite data in '{self.table_view.current_table}' with data from the CSV. Continue?",
+            ):
+                return
 
-        run_async(
-            self,
-            lambda: csv_io.import_table_from_csv(
-                self.temp_path, table_name, path),
-            on_complete, "Importing CSV\u2026")
+            table_name = self.table_view.current_table
+
+            def on_complete(_):
+                self.unsaved_changes = True
+                self.table_view.load_table_data()
+                self.status.config(text=f"Imported CSV data into table '{table_name}'")
+
+            run_async(
+                self.root,
+                lambda: csv_io.import_table_from_csv(self.temp_path, table_name, path),
+                on_complete, "Importing CSV...",
+            )
 
     def export_all_csv(self):
+        """Export all database tables as CSV files into a folder."""
         if not self.db:
             return
-        folder = QFileDialog.getExistingDirectory(
-            self, "Select folder to export all tables")
+
+        folder = filedialog.askdirectory(title="Select folder to export all tables")
         if folder:
             run_async(
-                self,
+                self.root,
                 lambda: csv_io.export_to_csv(self.temp_path, folder),
-                lambda _: self.status_label.setText(
-                    "Exported all tables to folder"),
-                "Exporting all tables\u2026")
+                lambda _: self.status.config(text="Successfully exported all tables to folder"),
+                "Exporting all tables...",
+            )
 
     def import_all_csv(self):
+        """Overwrite all matching tables from CSV files in a folder."""
         if not self.db:
             return
-        folder = QFileDialog.getExistingDirectory(
-            self, "Select folder containing CSV files")
-        if not folder:
-            return
-        if QMessageBox.question(
-            self, "Confirm Import",
-            "This will overwrite data in ALL matching tables "
-            "with CSV files from the selected folder. Continue?",
-            QMessageBox.Yes | QMessageBox.No,
-        ) != QMessageBox.Yes:
-            return
 
-        def on_complete(_):
-            self.unsaved_changes = True
-            if self.table_view.current_table:
-                self.table_view.load_table_data()
-            self.status_label.setText(
-                "Imported all matching tables from folder")
+        folder = filedialog.askdirectory(title="Select folder containing CSV files")
+        if folder:
+            if not messagebox.askyesno(
+                "Confirm Import",
+                "This will overwrite data in ALL matching tables with data from CSV files in the selected folder. Continue?",
+            ):
+                return
 
-        run_async(
-            self,
-            lambda: csv_io.import_from_csv(self.temp_path, folder),
-            on_complete, "Importing all tables\u2026")
+            def on_complete(_):
+                self.unsaved_changes = True
+                if self.table_view.current_table:
+                    self.table_view.load_table_data()
+                self.status.config(text="Successfully imported all matching tables from folder")
+
+            run_async(
+                self.root,
+                lambda: csv_io.import_from_csv(self.temp_path, folder),
+                on_complete, "Importing all tables...",
+            )
 
     # ==================================================================
     # Column Manager & Table Operations
@@ -531,84 +507,93 @@ class PCMDatabaseTools(QMainWindow):
 
     def open_column_manager(self):
         if not self.db or not self.table_view.current_table:
-            QMessageBox.warning(
-                self, "No Table", "Please select a table first.")
+            messagebox.showwarning("No Table", "Please select a table first.")
             return
-        dlg = ColumnManagerDialog(self.table_view, self.state, self)
-        dlg.exec()
+        ColumnManagerDialog(self.root, self.table_view, self.state)
 
     def clear_table(self):
+        """Delete all rows from the current table (undoable)."""
         if not self.db or not self.table_view.current_table:
-            QMessageBox.warning(
-                self, "No Table", "Please select a table first.")
+            messagebox.showwarning("No Table", "Please select a table first.")
             return
+
         try:
             table_name = self.table_view.current_table
             total_rows = self.db.get_row_count(table_name)
+
             if total_rows == 0:
-                QMessageBox.information(
-                    self, "Empty Table", "This table is already empty.")
+                messagebox.showinfo("Empty Table", "This table is already empty.")
                 return
-            if QMessageBox.question(
-                self, "Confirm Clear Table",
-                f"This will delete ALL {total_rows} rows from "
-                f"'{table_name}'.\n\nThis action can be undone.\n\nContinue?",
-                QMessageBox.Yes | QMessageBox.No,
-            ) != QMessageBox.Yes:
+
+            if not messagebox.askyesno(
+                "Confirm Clear Table",
+                f"This will delete ALL {total_rows} rows from '{table_name}'.\n\nThis action can be undone.\n\nContinue?",
+            ):
                 return
 
             columns = self.db.get_columns(table_name)
             pk_col = columns[0]
+
             _, all_rows = self.db.fetch_data(table_name, limit=None)
-            deleted_rows = [
-                {"pk": row[0], "data": list(row)} for row in all_rows]
+
+            deleted_rows = [{"pk": row[0], "data": list(row)} for row in all_rows]
+
             pk_vals = [row[0] for row in all_rows]
             self.db.delete_rows(table_name, pk_col, pk_vals)
 
             if deleted_rows:
-                self.state.push_action({
-                    "type": "row_op", "mode": "delete",
-                    "table": table_name, "pk_col": pk_col,
-                    "columns": columns, "rows": deleted_rows,
-                })
+                action = {
+                    "type": "row_op",
+                    "mode": "delete",
+                    "table": table_name,
+                    "pk_col": pk_col,
+                    "columns": columns,
+                    "rows": deleted_rows,
+                }
+                self.state.push_action(action)
+
             self.unsaved_changes = True
             self.table_view.load_table_data()
             self._update_btns()
-            self.status_label.setText(
-                f"Cleared {len(deleted_rows)} rows from '{table_name}'")
+            self.status.config(text=f"Cleared {len(deleted_rows)} rows from '{table_name}'")
+
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to clear table: {e}")
+            messagebox.showerror("Error", f"Failed to clear table: {str(e)}")
 
     # ==================================================================
     # Helpers
     # ==================================================================
 
-    def _on_table_select(self, table_name):
-        self.search_edit.clear()
+    def _create_search_box(self, parent, var, width):
+        """Create a search entry with a clear button, returns the container frame."""
+        frame = tk.Frame(parent, bg="white", highlightbackground="#ccc", highlightthickness=1)
+        tk.Entry(frame, textvariable=var, width=width, relief="flat").pack(side="left", padx=5, fill="x", expand=True)
+        tk.Button(frame, text="✕", command=lambda: var.set(""), relief="flat", bg="white", bd=0).pack(side="right")
+        return frame
+
+    def _on_selection_change(self, event=None):
+        count = len(self.table_view.tree.selection())
+        self.selection_label.config(text=f"{count} row{'s' if count != 1 else ''} selected" if count else "")
+
+    def on_table_select(self, table_name):
+        """Handle sidebar table selection — clear search and load the table."""
+        self.search_var.set("")
         self.table_view.set_table(table_name)
 
-    def _on_selection_change(self, count):
-        if count:
-            self.selection_label.setText(
-                f"{count} row{'s' if count != 1 else ''} selected")
-        else:
-            self.selection_label.setText("")
-
-    def closeEvent(self, event):
+    def on_close(self):
+        """Save settings and close the application, prompting if unsaved."""
         if self.unsaved_changes:
-            if QMessageBox.question(
-                self, "Unsaved Changes",
-                "You have unsaved changes. Are you sure you want to exit?",
-                QMessageBox.Yes | QMessageBox.No,
-            ) != QMessageBox.Yes:
-                event.ignore()
+            if not messagebox.askyesno("Unsaved Changes", "You have unsaved changes. Are you sure you want to exit?"):
                 return
-
-        is_maximized = self.isMaximized()
-        geom = f"{self.width()}x{self.height()}"
-        self.state.save_settings(
-            geom, is_maximized, self.lookup_btn.isChecked())
+        is_maximized = False
+        try:
+            if sys.platform.startswith('win'):
+                is_maximized = self.root.state() == 'zoomed'
+            else:
+                is_maximized = self.root.attributes('-zoomed')
+        except (tk.TclError, AttributeError):
+            pass
+        self.state.save_settings(self.normal_geometry, is_maximized, self.lookup_var.get())
         if self.db:
             self.db.close()
-        event.accept()
+        self.root.destroy()

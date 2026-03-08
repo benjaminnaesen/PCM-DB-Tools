@@ -5,188 +5,249 @@ Provides UI for showing/hiding columns, saving/loading presets,
 and searching through available columns.
 """
 
-from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QHBoxLayout, QInputDialog, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget,
-)
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog
 
 
-class ColumnManagerDialog(QDialog):
-    """Modal dialog for managing column visibility with preset support."""
+class ColumnManagerDialog:
+    """
+    Modal dialog for managing column visibility with preset support.
 
-    def __init__(self, table_view, app_state, parent=None):
-        super().__init__(parent)
+    Features:
+        - Checkboxes for all columns (primary key always visible)
+        - Search/filter columns by name
+        - Save/load/delete column visibility presets
+        - Show All / Hide All buttons
+    """
+    def __init__(self, parent, table_view, app_state):
+        """
+        Initialize column manager dialog.
+
+        Args:
+            parent: Parent tkinter window
+            table_view (TableView): Table view instance
+            app_state (AppState): Application state manager
+        """
+        self.parent = parent
         self.table_view = table_view
         self.state = app_state
         self.current_table = table_view.current_table
 
         if not self.current_table:
-            QMessageBox.warning(self, "No Table", "Please select a table first.")
-            self.reject()
+            messagebox.showwarning("No Table", "Please select a table first.")
             return
 
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title(f"Manage Columns - {self.current_table}")
+        self.dialog.geometry("500x600")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+
+        # Get all columns
         self.all_columns = table_view.get_all_columns()
         if not self.all_columns:
-            QMessageBox.warning(self, "No Columns", "No columns available.")
-            self.reject()
+            messagebox.showwarning("No Columns", "No columns available.")
+            self.dialog.destroy()
             return
 
+        # Current visible columns
         visible_cols = self.state.get_visible_columns(self.current_table)
         self.visible_columns = visible_cols if visible_cols else self.all_columns.copy()
 
-        self.setWindowTitle(f"Manage Columns \u2014 {self.current_table}")
-        self.resize(500, 600)
-        self.setModal(True)
+        self._setup_ui()
 
-        self._checkboxes: dict[str, QCheckBox] = {}
-        self._build_ui()
+    def _setup_ui(self):
+        # Top frame with presets
+        preset_frame = tk.Frame(self.dialog, bg="#f0f0f0", pady=10)
+        preset_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
 
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
+        tk.Label(preset_frame, text="Presets:", bg="#f0f0f0", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=5)
 
-        # Presets row
-        preset_row = QHBoxLayout()
-        preset_row.addWidget(QLabel("Presets:"))
-        self._preset_combo = QComboBox()
-        self._preset_combo.setMinimumWidth(160)
-        self._update_preset_list()
-        preset_row.addWidget(self._preset_combo, 1)
+        self.preset_var = tk.StringVar()
+        self.preset_combo = ttk.Combobox(preset_frame, textvariable=self.preset_var, state="readonly", width=20)
+        self.preset_combo.pack(side=tk.LEFT, padx=5)
+        self.update_preset_list()
 
-        for text, handler in [("Save", self._save_preset),
-                              ("Load", self._load_preset),
-                              ("Delete", self._delete_preset)]:
-            btn = QPushButton(text)
-            btn.setFixedWidth(70)
-            btn.clicked.connect(handler)
-            preset_row.addWidget(btn)
-        layout.addLayout(preset_row)
+        tk.Button(preset_frame, text="Save", command=self.save_preset, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Button(preset_frame, text="Load", command=self.load_preset, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Button(preset_frame, text="Delete", command=self.delete_preset, width=8).pack(side=tk.LEFT, padx=2)
 
-        # Filter
-        filter_row = QHBoxLayout()
-        filter_row.addWidget(QLabel("Filter:"))
-        self._filter_edit = QLineEdit()
-        self._filter_edit.setPlaceholderText("Search columns\u2026")
-        self._filter_edit.setClearButtonEnabled(True)
-        self._filter_edit.textChanged.connect(self._filter_columns)
-        filter_row.addWidget(self._filter_edit, 1)
-        layout.addLayout(filter_row)
+        # Search box
+        search_frame = tk.Frame(self.dialog, bg="#f0f0f0", pady=5)
+        search_frame.pack(side=tk.TOP, fill=tk.X, padx=10)
 
-        # Column label
-        layout.addWidget(QLabel("Columns:"))
+        tk.Label(search_frame, text="Filter:", bg="#f0f0f0").pack(side=tk.LEFT, padx=5)
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", self.filter_columns)
+        tk.Entry(search_frame, textvariable=self.search_var, width=30).pack(side=tk.LEFT, padx=5)
 
-        # Scrollable checkbox area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: 1px solid #ccc; }")
+        # Columns list with checkboxes
+        list_frame = tk.Frame(self.dialog)
+        list_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        container = QWidget()
-        self._cb_layout = QVBoxLayout(container)
-        self._cb_layout.setContentsMargins(10, 6, 10, 6)
-        self._cb_layout.setSpacing(4)
+        tk.Label(list_frame, text="Columns:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
 
-        for i, col in enumerate(self.all_columns):
-            cb = QCheckBox(col)
-            cb.setChecked(col in self.visible_columns)
-            if i == 0:
-                cb.setChecked(True)
-                cb.setEnabled(False)
-            self._cb_layout.addWidget(cb)
-            self._checkboxes[col] = cb
+        # Scrollable frame for checkboxes
+        canvas = tk.Canvas(list_frame, bg="white", highlightthickness=1, highlightbackground="#ccc")
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = tk.Frame(canvas, bg="white")
 
-        self._cb_layout.addStretch()
-        scroll.setWidget(container)
-        layout.addWidget(scroll, 1)
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Create checkboxes for each column
+        self.column_vars = {}
+        self.column_checkboxes = {}
+        self.create_column_checkboxes()
 
         # Bottom buttons
-        btn_row = QHBoxLayout()
-        show_all = QPushButton("Show All")
-        show_all.clicked.connect(self._show_all)
-        btn_row.addWidget(show_all)
+        button_frame = tk.Frame(self.dialog, bg="#f0f0f0", pady=10)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-        hide_all = QPushButton("Hide All")
-        hide_all.clicked.connect(self._hide_all)
-        btn_row.addWidget(hide_all)
+        tk.Button(button_frame, text="Show All", command=self.show_all_columns, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Hide All", command=self.hide_all_columns, width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Apply", command=self.apply_changes, width=12, bg="#4CAF50", fg="white").pack(side=tk.RIGHT, padx=10)
+        tk.Button(button_frame, text="Cancel", command=self.dialog.destroy, width=12).pack(side=tk.RIGHT, padx=5)
 
-        btn_row.addStretch()
+    def create_column_checkboxes(self):
+        """Create checkboxes for all columns."""
+        # Clear existing checkboxes
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
 
-        cancel = QPushButton("Cancel")
-        cancel.clicked.connect(self.reject)
-        btn_row.addWidget(cancel)
+        self.column_vars = {}
+        self.column_checkboxes = {}
 
-        apply_btn = QPushButton("Apply")
-        apply_btn.setStyleSheet(
-            "QPushButton { background: #4CAF50; color: white; padding: 6px 16px; }"
-            "QPushButton:hover { background: #43a047; }"
+        for i, col in enumerate(self.all_columns):
+            var = tk.BooleanVar(value=col in self.visible_columns)
+            self.column_vars[col] = var
+
+            # Disable first column (primary key) - must always be visible
+            state = "disabled" if i == 0 else "normal"
+            if i == 0:
+                var.set(True)  # Always checked
+
+            cb = tk.Checkbutton(
+                self.scrollable_frame,
+                text=col,
+                variable=var,
+                state=state,
+                bg="white",
+                anchor="w",
+                font=("Segoe UI", 9)
+            )
+            cb.pack(fill=tk.X, padx=10, pady=2)
+            self.column_checkboxes[col] = cb
+
+    def filter_columns(self, *args):
+        """
+        Filter visible checkboxes based on search term.
+
+        Shows/hides checkboxes that match the filter text.
+        """
+        search_term = self.search_var.get().lower()
+
+        for col, cb in self.column_checkboxes.items():
+            if search_term in col.lower():
+                cb.pack(fill=tk.X, padx=10, pady=2)
+            else:
+                cb.pack_forget()
+
+    def show_all_columns(self):
+        """Check all column checkboxes (select all for visibility)."""
+        for col, var in self.column_vars.items():
+            var.set(True)
+
+    def hide_all_columns(self):
+        """
+        Uncheck all column checkboxes (except primary key).
+
+        Primary key is always kept visible to maintain data integrity.
+        """
+        for i, (col, var) in enumerate(self.column_vars.items()):
+            if i > 0:  # Don't hide primary key
+                var.set(False)
+
+    def update_preset_list(self):
+        """Refresh preset dropdown with saved presets from app state."""
+        presets = self.state.get_column_presets(self.current_table)
+        self.preset_combo['values'] = list(presets.keys())
+
+    def save_preset(self):
+        """
+        Save current column selection as a named preset.
+
+        Prompts user for preset name and stores selected columns.
+        """
+        preset_name = simpledialog.askstring(
+            "Save Preset",
+            "Enter preset name:",
+            parent=self.dialog
         )
-        apply_btn.clicked.connect(self._apply)
-        btn_row.addWidget(apply_btn)
 
-        layout.addLayout(btn_row)
+        if preset_name:
+            # Get currently selected columns
+            selected_columns = [col for col, var in self.column_vars.items() if var.get()]
+            self.state.save_column_preset(self.current_table, preset_name, selected_columns)
+            self.update_preset_list()
+            self.preset_var.set(preset_name)
+            messagebox.showinfo("Success", f"Preset '{preset_name}' saved successfully.")
 
-    # ------------------------------------------------------------------
+    def load_preset(self):
+        """
+        Load a saved preset from dropdown.
 
-    def _filter_columns(self, text):
-        term = text.lower()
-        for col, cb in self._checkboxes.items():
-            cb.setVisible(term in col.lower())
+        Updates checkboxes to match the selected preset's column visibility.
+        """
+        preset_name = self.preset_var.get()
+        if not preset_name:
+            messagebox.showwarning("No Preset", "Please select a preset to load.")
+            return
 
-    def _show_all(self):
-        for cb in self._checkboxes.values():
-            cb.setChecked(True)
-
-    def _hide_all(self):
-        for i, cb in enumerate(self._checkboxes.values()):
-            if i > 0:
-                cb.setChecked(False)
-
-    # -- Presets -------------------------------------------------------
-
-    def _update_preset_list(self):
-        self._preset_combo.clear()
         presets = self.state.get_column_presets(self.current_table)
-        self._preset_combo.addItems(list(presets.keys()))
+        if preset_name in presets:
+            preset_columns = presets[preset_name]
+            # Update checkboxes
+            for col, var in self.column_vars.items():
+                var.set(col in preset_columns)
 
-    def _save_preset(self):
-        name, ok = QInputDialog.getText(self, "Save Preset", "Enter preset name:")
-        if ok and name:
-            selected = [c for c, cb in self._checkboxes.items() if cb.isChecked()]
-            self.state.save_column_preset(self.current_table, name, selected)
-            self._update_preset_list()
-            idx = self._preset_combo.findText(name)
-            if idx >= 0:
-                self._preset_combo.setCurrentIndex(idx)
+    def delete_preset(self):
+        """
+        Delete the currently selected preset.
 
-    def _load_preset(self):
-        name = self._preset_combo.currentText()
-        if not name:
-            QMessageBox.warning(self, "No Preset", "Please select a preset to load.")
+        Requires confirmation before deletion.
+        """
+        preset_name = self.preset_var.get()
+        if not preset_name:
+            messagebox.showwarning("No Preset", "Please select a preset to delete.")
             return
-        presets = self.state.get_column_presets(self.current_table)
-        if name in presets:
-            cols = presets[name]
-            for col, cb in self._checkboxes.items():
-                cb.setChecked(col in cols)
 
-    def _delete_preset(self):
-        name = self._preset_combo.currentText()
-        if not name:
-            QMessageBox.warning(self, "No Preset", "Please select a preset to delete.")
+        if messagebox.askyesno("Confirm Delete", f"Delete preset '{preset_name}'?"):
+            self.state.delete_column_preset(self.current_table, preset_name)
+            self.update_preset_list()
+            self.preset_var.set("")
+
+    def apply_changes(self):
+        """
+        Apply selected column visibility to table view.
+
+        Validates that primary key remains visible before applying.
+        """
+        selected_columns = [col for col, var in self.column_vars.items() if var.get()]
+
+        # Ensure at least the primary key is selected
+        if not selected_columns or self.all_columns[0] not in selected_columns:
+            messagebox.showerror("Error", "You must keep at least the primary key column visible.")
             return
-        if QMessageBox.question(
-            self, "Confirm", f"Delete preset '{name}'?",
-            QMessageBox.Yes | QMessageBox.No,
-        ) == QMessageBox.Yes:
-            self.state.delete_column_preset(self.current_table, name)
-            self._update_preset_list()
 
-    # -- Apply ---------------------------------------------------------
-
-    def _apply(self):
-        selected = [c for c, cb in self._checkboxes.items() if cb.isChecked()]
-        if not selected or self.all_columns[0] not in selected:
-            QMessageBox.critical(
-                self, "Error",
-                "You must keep at least the primary key column visible.")
-            return
-        self.table_view.set_visible_columns(selected)
-        self.accept()
+        # Update visibility
+        self.table_view.set_visible_columns(selected_columns)
+        self.dialog.destroy()

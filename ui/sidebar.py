@@ -5,169 +5,158 @@ Provides a two-section sidebar with favorites at the top and
 filterable table list below, supporting drag-and-drop reordering.
 """
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import (
-    QAbstractItemView, QLabel, QLineEdit, QListWidget,
-    QMenu, QVBoxLayout, QWidget,
-)
-
+import tkinter as tk
 from core.constants import FILTER_DEBOUNCE_DELAY
 
+class Sidebar:
+    """
+    Navigation sidebar for browsing and selecting database tables.
 
-class Sidebar(QWidget):
-    """Navigation sidebar for browsing and selecting database tables."""
+    Features:
+        - Favorites section with drag-and-drop reordering
+        - Searchable table list with debounced filtering
+        - Right-click context menu for adding/removing favorites
+        - Alternating row colors for better readability
+    """
+    def __init__(self, parent, app_state, on_table_select):
+        """
+        Initialize sidebar with favorites and table list.
 
-    table_selected = Signal(str)
-
-    def __init__(self, app_state, parent=None):
-        super().__init__(parent)
+        Args:
+            parent: Parent tkinter widget
+            app_state (AppState): Application state manager
+            on_table_select (callable): Callback function when table is selected
+        """
+        self.parent = parent
         self.state = app_state
-        self.all_tables: list[str] = []
-        self._cur_fav_index = 0
+        self.on_table_select = on_table_select
+        self.all_tables = []
+        self.sidebar_even, self.sidebar_odd, self.fav_color = "#e8e8e8", "#fdfdfd", "#fff9c4"
+        self.filter_timer = None
 
-        self._filter_timer = QTimer(self)
-        self._filter_timer.setSingleShot(True)
-        self._filter_timer.setInterval(FILTER_DEBOUNCE_DELAY)
-        self._filter_timer.timeout.connect(self._execute_filter)
+        self._setup_ui()
+        self._create_menu()
 
-        self._build_ui()
+    def _setup_ui(self):
+        tk.Label(self.parent, text=" ⭐ FAVORITES", anchor="w", bg="#ffd700", font=("SegoeUI", 8, "bold")).pack(fill=tk.X)
+        self.fav_lb = tk.Listbox(self.parent, height=6, relief="flat", bg=self.fav_color, highlightthickness=0)
+        self.fav_lb.pack(fill=tk.X, padx=2, pady=2)
+        self.fav_lb.bind("<<ListboxSelect>>", lambda e: self.on_select(self.fav_lb))
+        self.fav_lb.bind("<Button-3>", lambda e: self.show_menu(e, self.fav_lb))
+        self.fav_lb.bind("<Button-1>", self.on_fav_press)
+        self.fav_lb.bind("<B1-Motion>", self.on_fav_motion)
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
+        tk.Label(self.parent, text=" 📂 TABLES", anchor="w", bg="#444", fg="white", font=("SegoeUI", 8, "bold")).pack(fill=tk.X, pady=(5,0))
+        self.filter_var = tk.StringVar()
+        self.filter_var.trace_add("write", self.filter_list)
+        
+        # Search box
+        search_frame = tk.Frame(self.parent, bg="white", highlightbackground="#ccc", highlightthickness=1)
+        tk.Entry(search_frame, textvariable=self.filter_var, width=20, relief="flat").pack(side="left", padx=5, fill="x", expand=True)
+        tk.Button(search_frame, text="✕", command=lambda: self.filter_var.set(""), relief="flat", bg="white", bd=0).pack(side="right")
+        search_frame.pack(fill=tk.X, padx=2, pady=5)
 
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        self.listbox = tk.Listbox(self.parent, width=35, relief="flat", highlightthickness=0)
+        self.listbox.pack(expand=True, fill=tk.BOTH)
+        self.listbox.bind("<<ListboxSelect>>", lambda e: self.on_select(self.listbox))
+        self.listbox.bind("<Button-3>", lambda e: self.show_menu(e, self.listbox))
 
-        # Favorites header
-        fav_header = QLabel(" \u2b50 FAVORITES")
-        fav_header.setStyleSheet(
-            "background: #e0e0e0; font-size: 8pt; font-weight: bold;"
-            "padding: 4px; color: #333;"
-        )
-        layout.addWidget(fav_header)
-
-        # Favorites list (drag-drop reorder)
-        self.fav_list = QListWidget()
-        self.fav_list.setMaximumHeight(130)
-        self.fav_list.setStyleSheet(
-            "QListWidget { background: #f5f5f5; border: none; }"
-            "QListWidget::item { padding: 3px 6px; }"
-            "QListWidget::item:selected { background: #cce5ff; color: #000; }"
-        )
-        self.fav_list.setDragDropMode(QAbstractItemView.InternalMove)
-        self.fav_list.setDefaultDropAction(Qt.MoveAction)
-        self.fav_list.itemClicked.connect(
-            lambda item: self.table_selected.emit(item.text()))
-        self.fav_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.fav_list.customContextMenuRequested.connect(
-            lambda pos: self._show_menu(self.fav_list, pos))
-        self.fav_list.model().rowsMoved.connect(self._on_fav_reordered)
-        layout.addWidget(self.fav_list)
-
-        # Tables header
-        tbl_header = QLabel(" TABLES")
-        tbl_header.setStyleSheet(
-            "background: #e0e0e0; font-size: 8pt;"
-            "font-weight: bold; padding: 4px; color: #333;"
-        )
-        layout.addWidget(tbl_header)
-
-        # Filter search box
-        self._filter_edit = QLineEdit()
-        self._filter_edit.setPlaceholderText("Filter tables\u2026")
-        self._filter_edit.setClearButtonEnabled(True)
-        self._filter_edit.textChanged.connect(lambda: self._filter_timer.start())
-        self._filter_edit.setStyleSheet("margin: 4px; padding: 3px;")
-        layout.addWidget(self._filter_edit)
-
-        # Tables list
-        self.table_list = QListWidget()
-        self.table_list.setAlternatingRowColors(True)
-        self.table_list.setStyleSheet(
-            "QListWidget { border: none; }"
-            "QListWidget::item { padding: 3px 6px; }"
-            "QListWidget::item:alternate { background: #f4f4f4; }"
-            "QListWidget::item:selected { background: #cce5ff; color: #000; }"
-        )
-        self.table_list.itemClicked.connect(
-            lambda item: self.table_selected.emit(item.text()))
-        self.table_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table_list.customContextMenuRequested.connect(
-            lambda pos: self._show_menu(self.table_list, pos))
-        layout.addWidget(self.table_list, 1)  # stretch
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    def _create_menu(self):
+        self.menu = tk.Menu(self.parent, tearoff=0)
 
     def set_tables(self, tables):
-        """Populate the sidebar with table names."""
+        """
+        Update the list of available tables.
+
+        Args:
+            tables (list[str]): List of table names to display
+        """
         self.all_tables = tables
-        self._execute_filter()
+        self._execute_filter()  # Execute immediately when setting tables, not debounced
         self.refresh_favorites()
+
+    def filter_list(self, *args):
+        """Debounced filter handler that delays execution until typing stops."""
+        # Cancel previous filter timer if user is still typing
+        if self.filter_timer:
+            self.parent.winfo_toplevel().after_cancel(self.filter_timer)
+
+        # Schedule new filter after delay (faster than main search since it's in-memory)
+        self.filter_timer = self.parent.winfo_toplevel().after(FILTER_DEBOUNCE_DELAY, self._execute_filter)
+
+    def _execute_filter(self):
+        """Execute the actual filtering based on search term."""
+        term = self.filter_var.get().lower()
+        self.listbox.delete(0, "end")
+        for index, table in enumerate([t for t in self.all_tables if term in t.lower()]):
+            self.listbox.insert("end", table)
+            self.listbox.itemconfig(index, {'bg': self.sidebar_even if index % 2 == 0 else self.sidebar_odd})
+        self.filter_timer = None
 
     def refresh_favorites(self):
         """Reload the favorites list from app state."""
-        self.fav_list.clear()
-        for name in self.state.favorites:
-            if name in self.all_tables:
-                self.fav_list.addItem(name)
+        self.fav_lb.delete(0, "end")
+        for table in [f for f in self.state.favorites if f in self.all_tables]:
+            self.fav_lb.insert("end", table)
 
-    def select_first_favorite(self):
-        """Auto-select the first favourite if available."""
-        if self.fav_list.count() > 0:
-            self.fav_list.setCurrentRow(0)
-            self.table_selected.emit(self.fav_list.item(0).text())
+    def on_select(self, widget):
+        """Handle selection in either the favorites or tables listbox."""
+        selection = widget.curselection()
+        if selection:
+            self.on_table_select(widget.get(selection[0]))
 
-    # ------------------------------------------------------------------
-    # Filter
-    # ------------------------------------------------------------------
-
-    def _execute_filter(self):
-        term = self._filter_edit.text().lower()
-        self.table_list.clear()
-        for name in self.all_tables:
-            if term in name.lower():
-                self.table_list.addItem(name)
-
-    # ------------------------------------------------------------------
-    # Context menu
-    # ------------------------------------------------------------------
-
-    def _show_menu(self, widget, pos):
-        item = widget.itemAt(pos)
-        if not item:
-            return
-        name = item.text()
-
-        menu = QMenu(self)
-        if name in self.state.favorites:
-            menu.addAction("\u274c Remove Favorite",
-                           lambda: self._remove_favorite(name))
+    def show_menu(self, event, widget):
+        """Show right-click context menu to add/remove favorites."""
+        widget.selection_clear(0, "end")
+        index = widget.nearest(event.y)
+        widget.selection_set(index)
+        table_name = widget.get(index)
+        
+        self.menu.delete(0, "end")
+        if table_name in self.state.favorites:
+            self.menu.add_command(label="❌ Remove Favorite", command=self.remove_favorite)
         else:
-            menu.addAction("\u2b50 Add Favorite",
-                           lambda: self._add_favorite(name))
-        menu.exec(widget.mapToGlobal(pos))
+            self.menu.add_command(label="⭐ Add Favorite", command=self.add_favorite)
+        self.menu.post(event.x_root, event.y_root)
 
-    def _add_favorite(self, name):
-        if name not in self.state.favorites:
-            self.state.favorites.append(name)
-            self.refresh_favorites()
+    def add_favorite(self):
+        """Add the selected table to the favorites list."""
+        selection = self.listbox.curselection()
+        if selection:
+            name = self.listbox.get(selection[0])
+            if name not in self.state.favorites:
+                self.state.favorites.append(name)
+                self.refresh_favorites()
 
-    def _remove_favorite(self, name):
+    def remove_favorite(self):
+        """Remove the selected table from the favorites list."""
+        sel_fav = self.fav_lb.curselection()
+        sel_list = self.listbox.curselection()
+        name = self.fav_lb.get(sel_fav[0]) if sel_fav else self.listbox.get(sel_list[0]) if sel_list else None
         if name in self.state.favorites:
             self.state.favorites.remove(name)
             self.refresh_favorites()
 
-    # ------------------------------------------------------------------
-    # Drag-drop reorder callback
-    # ------------------------------------------------------------------
+    def on_fav_press(self, event):
+        """Record the drag start index for favorites reordering."""
+        self.cur_fav_index = self.fav_lb.nearest(event.y)
 
-    def _on_fav_reordered(self):
-        visible = [self.fav_list.item(i).text()
-                   for i in range(self.fav_list.count())]
-        hidden = [f for f in self.state.favorites if f not in visible]
-        self.state.favorites = visible + hidden
+    def on_fav_motion(self, event):
+        """Drag-and-drop reorder: move the dragged favorite to the hovered position."""
+        i = self.fav_lb.nearest(event.y)
+        if i < self.fav_lb.size() and i != self.cur_fav_index:
+            text = self.fav_lb.get(self.cur_fav_index)
+            self.fav_lb.delete(self.cur_fav_index)
+            self.fav_lb.insert(i, text)
+            self.fav_lb.selection_set(i)
+            self.cur_fav_index = i
+            
+            visible = list(self.fav_lb.get(0, tk.END))
+            hidden = [f for f in self.state.favorites if f not in visible]
+            self.state.favorites = visible + hidden
+    
+    def select_first_favorite(self):
+        """Auto-select the first favorite table if available."""
+        if self.fav_lb.size() > 0:
+            self.fav_lb.selection_set(0)
+            self.on_select(self.fav_lb)
