@@ -3,7 +3,7 @@ Startlist generator view.
 
 Full-frame view for converting saved HTML startlists from FirstCycling
 or ProCyclingStats into PCM-compatible XML files.  Supports loading
-team/cyclist data from CSV database folders or from an opened CDB file.
+team/cyclist data from a CDB file.
 
 Two tabs:
     - Singleplayer: HTML -> XML conversion with ID matching
@@ -25,6 +25,7 @@ import core.converter as converter
 from core.startlist import (
     StartlistDatabase, StartlistParser, PCMXmlWriter,
     apply_multiplayer_startlist, fetch_startlist_url,
+    _normalize, _name_similarity,
 )
 from ui.ui_utils import run_async
 
@@ -138,6 +139,7 @@ class StartlistView(QWidget):
         url_row = QHBoxLayout()
         url_row.addWidget(QLabel("or URL:"))
         self.url_edit = QLineEdit()
+        self.url_edit.textChanged.connect(self._try_select_race_from_url)
         url_row.addWidget(self.url_edit, 1)
         fetch_btn = QPushButton("Fetch")
         fetch_btn.clicked.connect(self._fetch_url)
@@ -267,6 +269,44 @@ class StartlistView(QWidget):
         layout.addWidget(self.mp_log_widget, 1)
 
         self.tabs.addTab(tab, "Multiplayer")
+
+    # ==================================================================
+    # Singleplayer: URL → race auto-selection
+    # ==================================================================
+
+    @staticmethod
+    def _extract_race_slug(url):
+        """Return the race slug from a PCS or FirstCycling URL, or None."""
+        import re
+        # ProCyclingStats: procyclingstats.com/race/{slug}/...
+        m = re.search(r'procyclingstats\.com/race/([^/?#]+)', url)
+        if m:
+            return m.group(1)
+        # FirstCycling: firstcycling.com/race/{slug}/...
+        m = re.search(r'firstcycling\.com/race/([^/?#]+)', url)
+        if m:
+            return m.group(1)
+        return None
+
+    def _try_select_race_from_url(self, url):
+        """Auto-select the best-matching race in the combo when a URL is pasted."""
+        if not url or not self._race_map:
+            return
+        slug = self._extract_race_slug(url.strip())
+        if not slug:
+            return
+        # Slug words → normalised search string (hyphens become spaces, accents stripped)
+        slug_norm = _normalize(slug.replace('-', ' '))
+        best_score, best_name = 0.0, None
+        for race_name in self._race_map:
+            score = _name_similarity(slug_norm, _normalize(race_name))
+            if score > best_score:
+                best_score = score
+                best_name = race_name
+        if best_score >= 0.4 and best_name:
+            idx = self.race_combo.findText(best_name)
+            if idx >= 0:
+                self.race_combo.setCurrentIndex(idx)
 
     # ==================================================================
     # Singleplayer: Database loading
@@ -421,10 +461,16 @@ class StartlistView(QWidget):
                 "Please select an HTML file or enter a URL.")
             return
 
-        output = self.out_label.text().strip()
-        if not output:
+        suggested = self.out_label.text().strip()
+        if not suggested:
             QMessageBox.warning(
                 self, "No race", "Please select a race first.")
+            return
+
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Save startlist as\u2026", suggested,
+            "XML files (*.xml);;All files (*.*)")
+        if not output:
             return
 
         self._clear_log()

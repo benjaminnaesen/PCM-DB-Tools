@@ -1,0 +1,227 @@
+IDrace,gene_sz_race_name,gene_sz_abbreviation,gene_sz_filename,fkIDcountry,fkIDrace_class,fkIDfirst_stage,fkIDlast_stage,gene_f_popularity,gene_i_number_stages,gene_sz_mailOrganisateur,gene_ilist_fkIDteam,CONSTANT,gene_sz_classification_xml,gene_f_organisateur_coeff,fkIDrace_type,gene_b_national_tour,fkID_iconic_region,gene_i_comfort,gene_b_aso,gene_sz_currentvariant,value_i_prime,gene_b_selected,value_i_offsetLeapYear
+1,Tour of Malaysia,Malays,t0_malaysia,49,10,1001,8001,15.0,8,organisateurs@malaysia-tour.com,"(5,15,12,125,70,92,81,102,93,95,123)",tourofmalaysia,cont_2hc,0.0,3,0,0,3,0,,0,1,0
+2,Kuurne - Brussel - Kuurne,K-B-K,c1_kuurne,4,16,1002,1002,45.0,1,organisateurs@kbk.be,"(37,13,3,5,6,11,9,1,42,33,10,20,15,14,16,99,12,92,34,60,97,69,25,107,125)",kuurne,cont_1hc,0.0,17,0,0,3,0,,0,1,1
+4,Paris-Roubaix Hauts-de-France,Roubai,topclas_roubaix,3,6,1004,1004,90.0,1,organisateurs@parisroubaix.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,25,60,107,69)",parisroubaix,top_classiques_majeures,0.0,11,0,315,4,1,,0,1,0
+5,Tour d'Helvétie,Helvet,top_suisse,17,3,1005,5005,75.0,5,organisateurs@helvetie-tour.ch,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125)",tourdesuisse,top_suisse,0.0,2,1,0,5,0,,0,1,0
+6,GP Bornecchi,Berno,c0_bernocchi,2,16,1006,1006,10.0,1,organisateurs@coppabernocchi.it,"(14,37,12,34,3,5,11,1,33,10,20,16,93,100,9,97,102,25,125,81)",bornecchi,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+8,Circuit de l'Ain,Ain,t1_ain,3,11,1008,3008,30.0,3,organisateurs@tour-ain.fr,"(3,6,34,25,107,124,126,59,68,5,12,166)",circuitain,cont_21,0.0,3,0,0,1,0,,0,1,0
+9,Denmark championships,N-DK,nat-den,10,22,1009,1009,40.0,1,organisateurs@chptdk.dk,(),champ_danemark,default,0.0,9,0,0,3,0,,0,1,0
+10,Schweizer Meisterschaft,N-SWI,nat-swi,17,22,1010,1010,40.0,1,organisateurs@chptswiss.ch,(),champ_swiss,default,0.0,9,0,0,3,0,,0,1,0
+11,Vlaanderen Classic,Vlaand,topclas_rondevv,4,6,1011,1011,90.0,1,organisateurs@ronde.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,107,25,92,69)",tourdesflandres,top_classiques_majeures,0.0,12,0,402,4,0,,0,1,0
+12,GP al Pais Vasco,PVasco,top_pvasco,8,4,1012,6012,70.0,6,organisateurs@pais-vasco.es,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,125,70,35,100)",tourpaysbasque,top_paysbasque,0.0,18,0,816,4,0,,0,1,0
+13,Wevelgem's Classic,Wevelg,topclas_gwevelgem,4,7,1013,1013,65.0,1,organisateurs@gent-wevelgem.be,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,34,92,69,25,107)",gandwevelgem,top_classiques_autres,0.0,17,0,0,4,0,,0,1,0
+15,La Flèche Wallonne,Flèche,topclas_fleche,4,8,1015,1015,75.0,1,organisateurs@lafleche.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,92,35,70,25)",flechewallone,top_classiques_autres,0.0,10,0,0,4,1,,0,1,0
+18,La Vuelta,Vuelta,top_vuelta,8,2,1018,21018,88.0,21,organisateurs@gt-espana.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,92,70)",vuelta,top_espagne_grandtour,0.0,1,0,0,5,1,,0,1,0
+19,GP de Romandie,Romand,top_romandie,17,3,1019,6019,60.0,6,organisateurs@romandie-tour.ch,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125)",tourderomandie,top_romandie,0.0,2,0,1702,4,0,,0,1,0
+24,Omloop Ghent,OGhent,topclas_omloophetnieuws,4,9,1024,1024,60.0,1,organisateurs@omloop-lastnews.be,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,92,69,25,107)",gandlokeren,top_classiques_autres,0.0,12,0,0,4,0,,0,1,0
+25,Tour de France,TDF,top_tdf,3,1,1025,21025,100.0,21,organisateurs@tourdefrance.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,25,35)",tour,top_france_grandtour,0.0,1,0,0,5,1,,0,1,0
+26,GP Hamburg,Hambur,topclas_hamburg,7,8,1026,1026,60.0,1,organisateurs@hamburg.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125)",hewcyclassics,top_classiques_autres,0.0,15,0,0,4,0,,0,1,0
+27,Route des Alpes-Maritimes,RAlMa,c1_alpesmaritimes,3,17,1027,1027,30.0,1,organisateurs@tour-alpes-maritimes.fr,"(42,6,34,15,3,99,93,124,59,25,68,126,209)",tourhautvar,cont_11,0.0,23,0,0,2,0,,0,1,0
+28,Plouay Classic,Plouay,topclas_plouay,3,8,1028,1028,60.0,1,organisateurs@plouay.fr,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,125)",grandprixplouay,top_classiques_autres,0.0,10,0,305,4,0,,0,1,0
+29,Route du Var,RDVar,c1_classicvar,3,17,1029,1029,15.0,1,organisateurs@classicvar.fr,"(42,6,34,15,3,99,93,124,59,25,68,126,209)",classicvar,cont_11,0.0,9,0,0,3,0,,0,1,0
+31,Route du Finistère,Finist,c1_finistere,3,17,1031,1031,10.0,1,organisateurs@routedufinistere.fr,"(3,6,25,34,1,9,107,35,68,59,124,126)",routefinistere,cont_11,0.0,10,0,0,3,0,,0,1,0
+32,Trophée Bro-Leon,TBLeon,c1_trobleon,3,16,1032,1032,25.0,1,organisateurs@tropheebroleon.fr,"(3,6,25,34,1,9,107,35,68,59,124,126)",tropheebroleon,cont_1hc,0.0,17,0,0,3,0,,0,1,0
+36,GP de Ordizia,Ordizi,c1_ordizia,8,17,1036,1036,10.0,1,organisateurs@gpordizia.es,"(1,5,9,12,16,20,35,70,92,38,105,109,100,102)",ordizia,cont_11,0.0,10,0,0,3,0,,0,1,0
+38,Ruta a Burgos,Burgos,t0_burgos,8,10,1038,5038,30.0,5,organisateurs@vuelta-burgos.es,"(1,2,3,5,6,11,12,13,14,15,20,33,16,35,70,92,97,100,102)",burgos,cont_2hc,0.0,3,0,0,2,0,,0,1,0
+39,G3 Vlaanderen,G3Vlaa,topclas_harelbeke,4,8,1039,1039,70.0,1,organisateurs@e3-classic.be,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,107,69)",gpe3,top_classiques_autres,0.0,12,0,0,4,0,,0,1,0
+43,Strade Bianche,Strade,topclas_stradebian,2,8,1043,1043,85.0,1,organisateurs@classica-bianche.it,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,81,93,102,103,107)",stradebianche,top_classiques_autres,0.0,10,0,0,4,0,,0,1,0
+44,Frankfurt Classic,Frankf,topclas_gpfrankfurt,7,9,1044,1044,45.0,1,organisateurs@eschborn-frankfurt.de,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125)",gpfrancfort,top_classiques_autres,0.0,9,0,0,3,0,,0,1,0
+49,Gran Premio San Sebastian,SanSeb,topclas_sansebastian,8,8,1049,1049,65.0,1,organisateurs@sansebastian.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,34,100,70,92,35)",klasikasansebastian,top_classiques_autres,0.0,10,0,816,4,0,,0,1,0
+58,Vuelta ciclista a Mallorca,Mallor,t1_mallorca,8,11,1058,5058,35.0,5,organisateurs@vuelta-mallorca.es,"(1,2,10,16,12,20,9,25,34,35,123,33,92)",vueltamallorca,cont_21,0.0,5,0,804,3,0,,0,1,0
+62,GP Figueira,Figue,c0_figueira,29,16,1062,1062,15.0,1,organisateurs@figueiraclassic.pt,"(10,16,11,37,5,1,15,12,125,35,70,100,38,105,109)",figueiraclassic,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+63,GP ao Algarve,Algarv,t0_algarve,29,10,1063,5063,35.0,5,organisateurs@volta-algarve.pt,"(10,1,14,16,6,25,34,35,33,105,109,38)",voltaalgarve,cont_2hc,0.0,2,0,2905,2,0,,0,1,0
+66,Trophée Samyn,Samyn,c1_fayt,4,17,1066,1066,20.0,1,organisateurs@fayt-le-franc.be,"(37,10,25,42,6,14,15,33,9,107,69,34,60,116,158,59,68)",fayt,cont_11,0.0,17,0,0,3,0,,0,1,0
+68,Settimana Ciclistica Internazionale,SetInt,t1_settimanainter,2,11,1068,5068,20.0,5,organisateurs@coppaciclistainter.it,"(2,5,10,14,37,81,35,25,102,114,103)",coppainternazionale,cont_21,0.0,4,0,0,2,0,,0,1,0
+69,Tour des Pays de la Loire,PLoire,t1_sarthe,3,11,1069,4069,25.0,4,organisateurs@toursarthe.fr,"(25,11,15,5,6,3,34,1,33,69,107,37,99,102)",circuitsarthe,cont_21,0.0,8,0,0,2,0,,0,1,0
+72,Circuit de Denain,Denain,c0_denain,3,16,1072,1072,10.0,1,organisateurs@denain.fr,"(14,16,37,13,3,6,11,9,33,12,35,34,60,97,69,25,107,124,126,59,68)",circuitdenain,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+74,Tour Auvergne-Rhône-Alpes,TARA,top_dauphine,3,3,1074,8074,78.0,8,organisateurs@tour-auv-rh-alpes.fr,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,125,25,35)",dauphinelibere,top_dauphine,0.0,18,0,322,4,1,,0,1,0
+77,Milano - Sanremo,SRemo,topclas_sanremo,2,6,1077,1077,90.0,1,organisateurs@milano-sanremo.it,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,81,102,107,123)",milansanremo,top_classiques_majeures,0.0,9,0,0,4,0,,0,1,0
+78,GP Castilla y León,Castil,c1_castillayleon,8,17,1078,1078,20.0,1,organisateurs@semanacastillaleon.es,"(9,16,1,12,20,34,35,92,38,97,105,109,100,152,102)",castillaleon,cont_11,0.0,10,0,808,2,0,,0,1,0
+85,Österreich Tour,Österr,t0_austria,37,11,1085,5085,25.0,5,organisateurs@osterreichrundfahrt.at,"(11,12,1,34,81,33,123,40,114,152,112,162,106)",osterreichrundfahrt,cont_21,0.0,2,1,0,3,0,,0,1,0
+87,Liège - Bastogne - Liège,LBL,topclas_lbl,4,6,1087,1087,90.0,1,organisateurs@lbl.org,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,35,69,25,107)",liegebastogneliege,top_classiques_majeures,0.0,10,0,401,4,1,,0,1,0
+91,Cataluña Pirineos,Catal,top_catalunya,8,4,1091,7091,80.0,7,organisateurs@vuelta-catalunya.es,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,92,35,70,100,60)",tourdecatalogne,top_catalogne,0.0,18,0,809,3,0,,0,1,0
+92,Paris - Tours,Tours,c0_paristours,3,16,1092,1092,40.0,1,organisateurs@cdm-paristours.com,"(14,11,37,9,3,16,6,2,12,34,99,15,25,125,42,97,107,59,68,124,126)",paristours,cont_1hc,0.0,15,0,0,3,1,,0,1,0
+93,Benelux Tour,Blux,top_benelux,4,4,1093,5093,55.0,5,organisateurs@tour-benelux.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,107,69)",tourdubenelux,top_benelux,0.0,4,0,0,4,0,,0,1,0
+95,Muscat Race,Musca,c1_muscatrace,68,17,1095,1095,20.0,1,organisateurs@muscat.com,"(34,5,99,6,16,10,1,25,12,14,15,20,97,125,92)",muscatrace,cont_11,0.0,10,0,0,5,0,,0,1,0
+96,Route du Limousin,Limous,t1_limousin,3,11,1096,4096,20.0,4,organisateurs@limousin.fr,"(3,6,25,34,9,107,59,68,124,126,100,81,93,70,35)",routelimousin,cont_21,0.0,5,0,312,1,0,,0,1,0
+97,Route of Oman,Oman,t0_oman,68,10,1097,5097,35.0,5,organisateurs@tourofoman.com,"(34,5,99,6,16,10,1,25,12,14,15,20,97,125,92)",tourofoman,cont_2hc,0.0,3,0,0,5,0,,0,1,0
+98,GP Sud Ardèche,Ardech,c1_ardeche,3,16,1098,1098,20.0,1,organisateurs@sudardeche.fr,"(3,6,25,16,14,11,12,13,2,1,15,5,9,125,97,35,34,107,59,124,126)",sudardeche,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+99,GP de la Drôme,Drome,c1_drome,3,16,1099,1099,20.0,1,organisateurs@drome.fr,"(3,6,25,16,14,11,12,13,2,1,15,5,9,125,97,35,34,107,59,124,126)",dromeclassic,cont_1hc,0.0,10,0,0,3,0,,0,1,1
+100,Classique d'Isbergues,Isber,c1_isbergues,3,17,1100,1100,10.0,1,organisateurs@isbergues.fr,"(125,12,10,37,3,99,13,15,42,6,20,34,97,9,107,102,69,68,59,124,126)",classicisbergues,cont_11,0.0,15,0,0,3,0,,0,1,0
+101,Baltimore Classic,Balti,c0_gpmaryland,6,16,1101,1101,10.0,1,,"(42,11,5,20,34,12,93,123,135,81,95)",,cont_1hc,0.0,9,0,0,3,0,,0,1,0
+102,Tour Franco-Belge,Fr-Bel,c0_eurometropole,4,16,1102,1102,20.0,1,organisateurs@francobelge.be,"(9,10,6,14,15,42,69,68,59,107,11,110,237)",tfrancobelge,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+103,La Famenne Légende,Famen,c1_famenne,4,17,1103,1103,15.0,1,organisateurs@famenneclassic.be,"(9,34,42,25,97,107,69,110,59,113,116,140,162)",famenneclassic,cont_11,0.0,9,0,0,3,0,,0,1,0
+104,GP Gippingen,Gippin,c1_gippingen,17,17,1104,1104,20.0,1,organisateurs@gp-argovie.ch,"(11,69,50,81,16,15,20,13,12,3,125)",gippingen,cont_11,0.0,9,0,0,3,0,,0,1,0
+105,GP Dunkerque,GPDun,c0_classiquedunkerque,3,16,1105,1105,20.0,1,organisateurs@dunkerque.fr,"(3,6,25,34,12,15,2,10,1,14,35,107,125,99,9,42,100,59,124,126,68)",classiquedunkerque,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+106,5 Jours de Dunkerque,5JDun,t0_dunkerque,3,10,1106,5106,25.0,5,organisateurs@tnpc.fr,"(3,6,25,34,12,15,2,10,1,14,35,107,125,99,9,42,100,59,124,126,68)",4joursdunkerque,cont_2hc,0.0,6,0,315,1,0,,0,1,0
+107,USA championships,N-USA,nat-usa,6,22,1107,1107,35.0,1,,(),champ_usa,default,0.0,9,0,0,3,0,,0,1,0
+108,Campeonato de Columbia,N-COL,nat-col,11,22,1108,1108,35.0,1,,(),champ_colombia,default,0.0,9,0,0,3,0,,0,1,0
+110,Australian championships,N-AUS,nat-aus,20,22,1110,1110,35.0,1,,(),champ_australia,default,0.0,9,0,0,3,0,,0,1,0
+111,Campeonatos do Portugal,N-POR,nat-por,29,22,1111,1111,35.0,1,,(),champ_portugal,default,0.0,9,0,0,3,0,,0,1,0
+112,Poland championships,N-POL,nat-pol,30,22,1112,1112,35.0,1,,(),champ_poland,default,0.0,9,0,0,3,0,,0,1,0
+113,Czech Republic championships,N-CZE,nat-cze,33,22,1113,1113,35.0,1,,(),champ_czechrepublic,default,0.0,9,0,0,3,0,,0,1,0
+115,Great Britain championships,N-GBR,nat-gbr,18,22,1115,1115,35.0,1,,(),champ_greatbritain,default,0.0,9,0,0,3,0,,0,1,0
+120,Campeonato de España (ITT),Ntt-ES,natitt-esp,8,23,1120,1120,11.0,1,,(),champ_spain_itt,default,0.0,13,0,0,3,0,,0,1,0
+121,Campione di Italia (ITT),Ntt-IT,natitt-ita,2,23,1121,1121,11.0,1,,(),champ_italy_itt,default,0.0,13,0,0,3,0,,0,1,0
+122,Championnats de France (ITT),Ntt-FR,natitt-fra,3,23,1122,1122,11.0,1,organisateurs@france-ch.org,(),champ_france_itt,default,0.0,13,0,0,3,0,,0,1,0
+123,Championnats de Belgique (ITT),Ntt-BE,natitt-bel,4,23,1123,1123,11.0,1,,(),champ_belgium_itt,default,0.0,13,0,0,3,0,,0,1,0
+124,Nederlands Kampioenschap (ITT),Ntt-NL,natitt-ned,5,23,1124,1124,11.0,1,,(),champ_netherlands_itt,default,0.0,13,0,0,3,0,,0,1,0
+125,USA championships (ITT),Ntt-US,natitt-usa,6,23,1125,1125,11.0,1,,(),champ_usa_itt,default,0.0,13,0,0,3,0,,0,1,0
+126,Deutsche Meisterschaft (ITT),Ntt-DE,natitt-deu,7,23,1126,1126,11.0,1,,(),champ_germany_itt,default,0.0,13,0,0,3,0,,0,1,0
+127,Great Britain championships (ITT),Ntt-GB,natitt-gbr,18,23,1127,1127,11.0,1,,(),champ_greatbritain_itt,default,0.0,13,0,0,3,0,,0,1,0
+128,GP de Almeria,Almerí,c1_almeria,8,16,1128,1128,10.0,1,organisateurs@almeria.es,"(97,125,9,34,25,1,100,20,92,12,35,102,70,69,81)",gpalmeria,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+133,Paris - Nice,Nice,top_nice,3,3,1133,8133,82.0,8,organisateurs@paris-nice.fr,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,25)",parisnice,top_parisnice,0.0,2,0,0,4,1,,0,1,0
+135,Supergiro di Italia,Italia,top_giro,2,2,1135,21135,92.0,21,organisateurs@gt-italia.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,81,102,107)",giro,top_italie_grandtour,0.0,1,0,0,5,0,,0,1,0
+139,Giro Adriatico,AdriG,top_tirreno,2,3,1139,7139,80.0,7,organisateurs@tirreno-adriatico.it,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,35,81,93,102)",tirrenoadriatico,top_tirreno,0.0,2,0,0,4,0,,0,1,0
+145,Scheldetour Vlaanderen,Scheld,c0_schelde,4,16,1145,1145,35.0,1,organisateurs@flanders-classic.be,"(15,10,9,3,12,14,6,5,25,2,11,34,33,69,107)",scheldetourvlaanderen,cont_1hc,0.0,17,0,0,3,0,,0,1,0
+149,GP de Namur,Namur,c1_gpwallonie,4,16,1149,1149,20.0,1,organisateurs@criterium-wallonie.be,"(9,10,37,20,14,2,5,11,6,34,15,69,110)",gpnamur,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+153,Coppa Varesina,Vares,c0_trevallevaresine,2,16,1153,1153,30.0,1,organisateurs@valle-varesine.it,"(5,11,12,2,16,13,81,102,3,20,103)",coppavaresine,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+159,GP Bruxelles,Bruxel,c0_parisbruxelles,4,16,1159,1159,30.0,1,organisateurs@paris-bruxelles.be,"(9,10,5,34,35,12,3,6,125,33,110,99,70,100,42,107,81)",parisbruxelles,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+160,Circuit de Fourmies,Fourmi,c0_fourmies,3,16,1160,1160,20.0,1,organisateurs@criterium-fourmies.fr,"(125,12,10,37,3,99,13,15,42,6,20,34,97,9,107,102,69,68,59,124,126)",gpfourmies,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+163,Milano - Torino,Torino,c0_milanotorino,2,16,1163,1163,40.0,1,organisateurs@milano-torino.it,"(5,11,12,2,16,13,81,102,1,3,6,20)",milanotorino,cont_1hc,0.0,14,0,0,3,0,,0,1,0
+165,Coppa del Piemonte,Piemon,c0_piemonte,2,16,1165,1165,25.0,1,organisateurs@classic-piemonte.it,"(5,11,12,2,16,13,81,102,1,3,6,20)",piemonte,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+166,Tour of Denmark,TourDk,t0_denmark,10,10,1166,5166,30.0,5,organisateurs@denmark-circuit.dk,"(14,9,11,15,10,25,81,69,123,161,99,106,164)",tourdudanemark,cont_2hc,0.0,8,1,0,3,0,,0,1,0
+167,Supervolta a Portugal,Portug,t1_portugal,29,11,1167,11167,15.0,11,organisateurs@portugal-volta.pt,"(16,68,38,35,93,105,109,100,242,146)",tourduportugal,cont_21,0.0,2,1,0,2,0,,0,1,0
+169,Coppa dell'Emilia,Emilia,c0_emilia,2,16,1169,1169,40.0,1,organisateurs@gp-emilia.it,"(5,11,12,2,16,13,81,102,1,3,6,20)",coppadelemilia,cont_1hc,0.0,14,0,0,3,0,,0,1,0
+171,GP Copenhagen,Copen,topclas_copenhagen,10,9,1171,1171,40.0,1,organisateurs@copenhagensprint.dk,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",copenhagensprint,top_classiques_autres,0.0,15,0,0,4,0,,0,1,0
+172,Il Lombardia,Lombar,topclas_lombardia,2,6,1172,1172,85.0,1,organisateurs@lombardia.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,81,93,102,103)",tourdelombardie,top_classiques_majeures,0.0,14,0,204,4,0,,0,1,0
+173,Limburg Green Race,GreenR,topclas_maastricht,5,7,1173,1173,75.0,1,organisateurs@goldrace.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,34,97,125,107,69,25,35)",amstelgoldrace,top_classiques_autres,0.0,10,0,506,4,0,,0,1,0
+175,World Championships,Worlds,world,18,20,1175,1175,95.0,1,organisateurs@world-ch.org,(),worldchampionship,default,0.0,14,0,0,3,0,,0,1,0
+179,GP di Toscana,Toscan,c1_toscana,2,17,1179,1179,10.0,1,organisateurs@toscana.it,"(12,34,2,20,16,93,102,100,81,97,25,104,103,160)",gptoscana,cont_11,0.0,10,0,0,2,0,,0,1,0
+181,Classic Slovenia,ClSlov,c2_gpslovenian,28,18,1181,1181,5.0,1,organisateurs@gpslovenian.com,"(50,40,112,114,113,152,58,162,106,158)",gpslovenian,cont_12,0.0,17,0,0,3,0,,0,1,0
+182,GP Novo Mesto,GPNoVo,c2_gpadria,28,18,1182,1182,5.0,1,organisateurs@gpadriamobil.com,"(50,40,112,114,113,152,58,162,106,158)",gpadria,cont_12,0.0,17,0,0,3,0,,0,1,0
+183,Route of Slovenia,Sloven,t0_slovenia,28,10,1183,5183,30.0,5,organisateurs@slovenia-tour.com,"(13,11,20,14,16,92,35,70,100,93,102,107,99,81,50)",tourslovenia,cont_2hc,0.0,3,1,0,2,0,,0,1,0
+184,GP Kranj,Kranj,c2_gpkranj,28,18,1184,1184,10.0,1,organisateurs@gp-kranj.com,"(50,40,112,114,113,152,58,162,106,158)",gpkranj,cont_12,0.0,10,0,0,3,0,,0,1,0
+186,Qinghai Lake Road,Qingha,t0_qinghai,25,10,1186,8186,15.0,8,organisateurs@quighai-road.org,"(123,100,96,92,146,81,162,95,107,12)",qinghai,cont_2hc,0.0,4,0,0,4,0,,0,1,0
+189,Münsterland Giro,Münst,c0_munsterland,7,16,1189,1189,10.0,1,organisateurs@munsterland.de,"(15,33,69,40,114,11,9,10,152,147,166)",munsterland,cont_1hc,0.0,9,0,0,3,0,,0,1,0
+190,Britain's Tour,Britai,t0_britain,18,10,1190,5190,35.0,5,organisateurs@tour-of-britain.uk,"(2,16,14,11,10,42,99,3,13,15,6,125,97,9,107,70,69,105)",tourofbritain,cont_2hc,0.0,4,1,0,3,0,,0,1,0
+191,Chrono des Nations,ChrNat,c1_nations,3,17,1191,1191,10.0,1,organisateurs@chrono-des-nations.fr,"(3,6,25,34,59,68,9,107,69,124,126)",chrononations,cont_11,0.0,13,0,0,3,0,,0,1,0
+192,Japan GP,Japan,c0_japancup,21,16,1192,1192,10.0,1,organisateurs@japan-cup.org,"(16,13,5,40,2,20,11,81,14,95,123)",japancup,cont_1hc,0.0,10,0,0,4,0,,0,1,0
+193,Tour de Vendée,Vendée,c0_vendee,3,17,1193,1193,15.0,1,organisateurs@tourdevendee.fr,"(3,6,25,34,59,68,9,107,69,124,126)",tourdevendee,cont_11,0.0,15,0,0,3,0,,0,1,0
+200,Course de la Paix U23,PaixU,u23_paix,33,13,1200,4200,0.0,4,organisateurs@coursedelapaix-u23.cz,"(203,233,211,201,213,215,205,202,210,225,214,216,212,206,209,237,135)",coursedelapaix,cont_22,0.0,3,0,0,3,0,,0,1,0
+202,Ronde de l'Isard,Isard,t2u_isard,3,13,1202,5202,5.0,5,organisateurs@ronde-isard.fr,"(203,233,211,201,213,215,205,202,210,225,214,216,212,206,209,237,135)",u23rondeisard,cont_22,0.0,3,0,0,1,0,,0,1,0
+203,Liège - Bastogne - Liège U23,LBLu23,c2u_lbl,4,19,1203,1203,10.0,1,organisateurs@lblu23.be,"(215,209,203,207,206,242,213,214,150,135)",u23bastogneliege,cont_12,0.0,10,0,0,3,0,,0,1,0
+205,Tour de l'Avenir,Avenir,u23_avenir,3,13,1205,8205,0.0,8,organisateurs@tour-avenir.fr,"(203,233,211,201,213,215,205,202,210,225,214,216,212,206,209,237,135)",u23avenir,cont_22,0.0,2,0,0,3,0,,0,1,0
+210,Giro della Valle d'Aosta,Aosta,t2_aosta,2,13,1210,5210,10.0,5,organisateurs@girovalleaosta.it,"(203,233,211,201,213,215,205,202,210,225,214,216,212,206,209,237,135)",girovalleaosta,cont_22,0.0,18,0,0,3,0,,0,1,0
+214,Brakel - Haacht,Brakel,c0_primus,4,16,1214,1214,3.0,1,organisateurs@brakelhaacht.be,"(9,37,10,11,1,33,15,20,16,34,12,42,125,99,35,100,69,25)",brakelhaacht,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+216,Lombardia U23,Lomb23,c2u_lombardia,2,19,1216,1216,8.0,1,organisateurs@piccololombardia.it,"(215,209,203,207,206,242,213,214,150,135)",piccololombardia,cont_12,0.0,10,0,0,3,0,,0,1,0
+220,Trofeo Getxo,Getxo,c1_getxo,8,17,1220,1220,10.0,1,organisateurs@gp-gexto.es,"(1,12,16,35,70,92,38,105,109,100,102)",trofeogetxo,cont_11,0.0,10,0,0,3,0,,0,1,0
+237,Tour Alpes-Isère,AlpIsè,t2_rhalpesisere,3,12,1237,5237,10.0,5,organisateurs@rhalpesisere.fr,"(25,107,152,35,206,203,215,40,99,102)",rhalpesisere,cont_22,0.0,3,0,0,1,0,,0,1,0
+238,Olympia's Road,Olymp,t2_olympiatour,5,12,1238,5238,10.0,5,organisateurs@olympiastour.nl,"(215,209,135,140,203,207,146,102,206,214)",olympiastour,cont_22,0.0,8,0,0,3,0,,0,1,0
+242,Boucles de la Mayenne,Mayenn,t1_mayenne,3,10,1242,4242,5.0,4,organisateurs@bouclesmayenne.fr,"(34,25,68,59,92,70,147,107,124,126)",bouclesmayenne,cont_2hc,0.0,8,0,0,2,0,,0,1,0
+243,La Flèche Ardennaise,FlèArd,c2_flechearden,4,18,1243,1243,7.0,1,organisateurs@flecheardennaise.be,"(209,81,70,237,233,214,242,211,135,152,207,146)",flecheardennaise,cont_12,0.0,10,0,0,3,0,,0,1,0
+244,Czech Tour,CzechT,t1_czecht,33,10,1244,4244,15.0,4,organisateurs@czechtour.cz,"(33,42,70,81,60,102,103,92,93,40,163)",czechtour,cont_2hc,0.0,5,1,0,1,0,,0,1,0
+248,World Championships ITT,WorlTT,worlditt,18,21,1248,1248,75.0,1,organisateurs@world-ch.org,(),worldchampionshipitt,default,0.0,13,0,0,3,0,,0,1,0
+254,Bredene Koksijde,Brede,c0_bredene,4,16,1254,1254,10.0,1,organisateurs@bredenekoksijde.be,"(9,10,11,14,15,16,20,25,37,42,69,33,99,107,123,125,110,116)",bredenekoksijde,cont_1hc,0.0,17,0,0,3,0,,0,1,0
+255,Route Loire Atlantique,LoireA,c1_loireat,3,18,1255,1255,10.0,1,organisateurs@rteloireatlantique.fr,"(103,35,59,68,124,126,162,110,207,96)",routeloireatlantique,cont_12,0.0,9,0,0,3,0,,0,1,0
+261,GP de Plumelec,Plumel,c1_plumelec,3,16,1261,1261,15.0,1,organisateurs@gpmorbihan.fr,"(3,6,25,34,59,68,9,107,69,124,126)",gpmorbihan,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+262,GP de l'Aulne,Aulne,c1_aulne,3,17,1262,1262,15.0,1,organisateurs@gpaulne.fr,"(3,6,25,34,59,68,9,107,69,124,126)",gpaulne,cont_11,0.0,10,0,0,3,0,,0,1,0
+273,Binche - Chimay,Binch,c1_binchetournai,4,17,1273,1273,10.0,1,organisateurs@binchetournaibinche.be,"(9,10,20,14,2,5,11,6,107,34,15,69,110,37)",binchetournaibinche,cont_11,0.0,17,0,0,3,0,,0,1,0
+279,Paris - Troyes,Troyes,c2_paristroyes,3,18,1279,1279,9.0,1,organisateurs@paristroyes.fr,"(34,68,59,70,114,109,107,124,126)",paristroyes,cont_12,0.0,9,0,0,3,0,,0,1,0
+280,Ieper-Wevelgem U23,IWeU23,u23_gwevelgem,4,19,1280,1280,10.0,1,organisateurs@kattekoers.be,"(69,68,110,150,158,237,242,209)",kattekoers,cont_12,0.0,17,0,0,3,0,,0,1,0
+281,Istrian Trophy,Istria,t2_istriantrophy,44,12,1281,4281,5.0,4,organisateurs@istrianspringtrophy.com,"(93,81,163,112,135,211,152,114,216,40,162,225,233,50,214)",istrianspringtrophy,cont_22,0.0,4,0,0,2,0,,0,1,0
+283,GP ao Alentejo,CAzul,t1_alentejo,29,12,1283,5283,5.0,5,organisateurs@gpcostaazul.pt,"(35,70,92,100,38,105,109,161)",gpcostaazul,cont_22,0.0,16,0,0,2,0,,0,1,0
+286,Tour des Ardennes,Ardenn,t2_tourardennes,3,12,1286,4286,7.0,4,organisateurs@circuitardennes.fr,"(59,68,152,147,70,135,113,124,126)",circuitardennes,cont_22,0.0,5,0,0,1,0,,0,1,0
+290,Championnats de France,N-FRA,nat-fra,3,22,1290,1290,50.0,1,organisateurs@france-ch.org,(),champ_france,default,0.0,9,0,0,3,0,,0,1,0
+293,GP de Bessèges,Bessè,t1_besseges,3,11,1293,5293,25.0,5,organisateurs@besseges.fr,"(3,6,37,9,34,25,107,92,103,97,69,102,124,126,59,68)",besseges,cont_21,0.0,4,0,0,1,0,,0,1,0
+294,Tour of Australia,Austra,top_australia,20,3,1294,6294,65.0,6,organisateurs@down-under.au,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,125)",down_under,top_australia,0.0,5,0,0,5,0,,0,1,0
+296,Tour of Arctic,Arctic,t0_articnorway,35,10,1296,4296,25.0,4,organisateurs@artic-norway.com,"(14,10,9,11,3,2,5,69,34,6,15,25,33,161)",articracenorway,cont_2hc,0.0,5,0,0,4,0,,0,1,0
+297,UAE Trophy,UAE,top_uaetour,105,5,1297,7297,65.0,7,organisateurs@uaetour.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125,60)",uaetour,top_pologne,0.0,2,1,0,5,0,,0,1,0
+298,Tour of Saudi Arabia,Saudi,t1_saudi,109,10,1298,5298,35.0,5,organisateurs@sauditour.com,"(13,11,97,20,16,10,15,12,125,34,25,35,60,95)",sauditour,cont_2hc,0.0,16,1,0,3,0,,0,1,0
+299,Tour de Hongrie,Hongr,t0_hungarytour,40,10,1299,5299,30.0,5,organisateurs@hungarytour.com,"(16,2,20,11,15,33,13,12,102,125,9,97,69,100,93,107)",tourofhungary,cont_2hc,0.0,5,1,0,3,0,,0,1,0
+300,Sardegna Mediterraneo,SardeM,t1_sardegna,2,11,1300,5300,10.0,5,organisateurs@sardegna.it,"(10,12,70,81,93,102,103,123,40,95,104,160,211,213,216,233)",girosardegna,cont_21,0.0,3,0,220,3,0,,0,1,1
+301,Tour de Provence,TProv,t1_provence,3,11,1301,3301,15.0,3,organisateurs@tourlaprovence.fr,"(3,34,6,126,25,59,68,124,11,42,93,104)",tourlaprovence,cont_21,0.0,4,0,0,3,0,,0,1,0
+302,GP de Marseille,Marsei,c1_gpmarseille,3,17,1302,1302,15.0,1,organisateurs@gp-ouverture.fr,"(3,6,25,34,59,68,9,107,69,124,126)",gpmarseille,cont_11,0.0,9,0,0,3,0,,0,1,0
+304,Ruta de Andalucia,Andalu,t0_andalucia,8,10,1304,5304,35.0,5,organisateurs@andalusia-tour.es,"(1,9,12,15,11,2,14,34,35,69,123)",vueltaandalucia,cont_2hc,0.0,2,0,801,2,0,,0,1,0
+305,Giro di Laigueglia,Laigue,c0_laigueglia,2,16,1305,1305,15.0,1,organisateurs@trofeo-laigueglia.it,"(11,3,12,34,6,2,16,81,102,70,160)",girolaigueglia,cont_1hc,0.0,9,0,0,3,0,,0,1,0
+309,Vuelta a Valenciana,Valen,t1_valenciana,8,10,1309,5309,35.0,5,organisateurs@valenciana.es,"(16,13,33,20,1,11,37,2,102,81,100,92,35,70,97,123,42)",voltavalenciana,cont_2hc,0.0,2,0,810,2,0,,0,1,0
+311,GP Murcia,Murcia,t1_murcia,8,11,1311,2311,25.0,2,organisateurs@murcia-vuelta.es,"(97,13,16,10,12,1,9,70,69,81,60,25,107,100,35,92)",murcia,cont_21,0.0,5,0,817,1,0,,0,1,0
+314,GP van Nokere,Nokere,c0_nokere,4,16,1314,1314,15.0,1,organisateurs@nokere-koerse.be,"(10,9,6,2,14,15,69,35,33,59,99,107)",gpvannokere,cont_1hc,0.0,15,0,0,3,0,,0,1,0
+316,GP de Cholet,Cholet,c1_cholet,3,17,1316,1316,15.0,1,organisateurs@cholet-pdl.fr,"(3,6,25,34,59,68,9,107,69,124,126)",cholet,cont_11,0.0,15,0,0,3,0,,0,1,0
+317,GP Waregem,Wareg,topclas_dwarsvlaanderen,4,9,1317,1317,50.0,1,organisateurs@atravers-flandres.be,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",kortrijkwaregem,top_classiques_autres,0.0,12,0,0,3,0,,0,1,0
+318,Brabantse Prijs,Braban,c0_brabantseprijs,4,16,1318,1318,40.0,1,organisateurs@brabantse-pijl.be,"(10,37,9,13,34,5,14,16,42,69,97,125,107,99,25,35,70,123)",brabantseprijs,cont_1hc,0.0,9,0,0,3,0,,0,1,0
+319,GP De Panne,Panne,topclas_panne,4,9,1319,1319,45.0,1,organisateurs@de-panne.be,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",3panne,top_classiques_autres,0.0,17,0,0,3,0,,0,1,0
+320,GP del Navarra,Navarr,c1_navarra,8,16,1320,1320,15.0,1,organisateurs@gp-indurain.es,"(1,2,5,20,35,42,92,38,105,109)",gpnavarra,cont_1hc,0.0,14,0,0,3,0,,0,1,0
+322,GP Ciremi,Ciremi,c1_cerami,4,18,1322,1322,15.0,1,organisateurs@gp-pino.be,"(9,10,69,81,68,59,110,237,242,215)",ciremi,cont_12,0.0,17,0,0,3,0,,0,1,0
+324,Paris - Vimoutiers,Vimout,c1_pariscamembert,3,17,1324,1324,20.0,1,organisateurs@paris-camenbert.fr,"(3,6,25,34,68,59,69,124,126,100,81,35,70,107)",parisvimoutiers,cont_11,0.0,10,0,0,3,0,,0,1,0
+325,Circuito del Trentino,Alps,t0_alps,2,10,1325,5325,45.0,5,organisateurs@tour-alps.it,"(2,3,12,33,5,6,37,81,35,114,103)",trentino,cont_2hc,0.0,18,0,205,2,0,,0,1,0
+328,Coppa dell'Appennino,Appeni,c1_appennino,2,17,1328,1328,15.0,1,organisateurs@giro-appennino.it,"(5,11,12,2,16,13,81,102,103)",appenino,cont_11,0.0,10,0,0,3,0,,0,1,0
+334,Tour de la Belgique,TBelge,t0_belgique,4,10,1334,5334,35.0,5,organisateurs@belgique-tour.be,"(9,10,69,37,14,15,3,34,42,25,107,102,123,110,116,140,158)",tourbelgique,cont_2hc,0.0,6,1,0,3,0,,0,1,0
+335,GP du Luxembourg,Luxem,t0_luxembourg,19,10,1335,5335,30.0,5,organisateurs@luxembourg-tour.com,"(5,3,16,37,13,6,1,11,10,14,9,97,69,107,25,125,99,102,112)",tourluxembourg,cont_2hc,0.0,4,1,0,3,0,,0,1,0
+338,Köln Rundfahrt,KolnR,c1_koln,7,17,1338,1338,10.0,1,organisateurs@gp-koln.de,"(15,33,69,162,40,114,11,9,10,152,160)",kolnrundfahrt,cont_11,0.0,9,0,0,3,0,,0,1,0
+343,La Route Wallonne,Wall,t0_wallonie,4,10,1343,5343,30.0,5,organisateurs@wallonne-tour.be,"(37,13,34,6,2,9,11,1,33,20,42,69,25,99,81,110)",trw,cont_2hc,0.0,5,0,0,3,0,,0,1,0
+344,GP de Normandie,Norman,c1_normandie,3,17,1344,1344,15.0,1,organisateurs@polynormande.fr,"(3,6,25,34,59,68,9,107,69,124,126)",normandie,cont_11,0.0,9,0,0,3,0,,0,1,0
+348,GP Agostini,Agost,c1_agostoni,2,17,1348,1348,15.0,1,organisateurs@coppa-agostoni.it,"(5,11,12,2,16,13,81,102,103)",agostini,cont_11,0.0,9,0,0,3,0,,0,1,0
+359,GP de Pologne,Gp Pol,top_pologne,30,4,1359,7359,50.0,7,organisateurs@tour-pologne.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",tourpologne,top_pologne,0.0,5,1,0,4,0,,0,1,0
+365,Trofeo Sabatini,Sabat,c1_sabatini,2,16,1365,1365,10.0,1,organisateurs@coppa-sabatini.it,"(5,11,12,2,16,13,81,102,103)",trofeosabatini,cont_1hc,0.0,9,0,0,3,0,,0,1,0
+374,Campeonato de España,N-ESP,nat-esp,8,22,1374,1374,50.0,1,organisateurs@espana.es,(),champ_spain,default,0.0,9,0,0,3,0,,0,1,0
+375,Campione d'Italia,N-ITA,nat-ita,2,22,1375,1375,50.0,1,organisateurs@italia.it,(),champ_italy,default,0.0,9,0,0,3,0,,0,1,0
+376,Championnats de Belgique,N-BEL,nat-bel,4,22,1376,1376,50.0,1,organisateurs@belgique.be,(),champ_belgium,default,0.0,9,0,0,3,0,,0,1,0
+377,Nederlands Kampioenschap,N-NED,nat-ned,5,22,1377,1377,50.0,1,organisateurs@ned-ch.nl,(),champ_netherlands,default,0.0,9,0,0,3,0,,0,1,0
+378,Deutsche Meisterschaft,N-DE,nat-deu,7,22,1378,1378,50.0,1,organisateurs@dmeisterschaft.de,(),champ_germany,default,0.0,9,0,0,3,0,,0,1,0
+380,GP de Vitré,Vitré,c1_vitre,3,17,1380,1380,10.0,1,organisateurs@routeadelie.fr,"(3,6,25,34,99,107,35,70,100,123,81,68,59,124,126)",gpvitre,cont_11,0.0,10,0,0,3,0,,0,1,0
+381,Tour d'Occitanie,Occit,t1_occitanie,3,11,1381,3381,25.0,3,organisateurs@routeoccitanie.fr,"(34,3,6,5,25,107,92,35,70,100,102,81,124,126,59,68)",occitanie,cont_21,0.0,18,0,0,3,0,,0,1,0
+388,Clasica Andalucia,C Anda,c1_clasicajaen,8,17,1388,1388,20.0,1,organisateurs@clasicajaen.es,"(16,1,13,33,10,35,92,97,70,81,107,69,100,105)",clasicajaen,cont_11,0.0,10,0,0,4,0,,0,1,0
+389,O Gran Camiño,G Cami,t1_grancamino,8,11,1389,5389,10.0,5,organisateurs@grancamino.es,"(1,6,14,34,42,35,70,81,92,100,102,105,109)",grancamino,cont_21,0.0,2,0,0,3,0,,0,1,0
+391,GP da Arrabida,Arrabi,c2_classicaarrabida,29,18,1391,1391,2.0,1,organisateurs@classicaarrabia.pt,"(16,68,38,35,70,105,109,100,42,216)",classicaarrabia,cont_12,0.0,10,0,0,3,0,,0,1,0
+392,GP Besançon,Besan,c1_classicgdbesandoubs,3,17,1392,1392,15.0,1,organisateurs@classicgdbesancon.fr,"(6,14,3,34,70,107,35,92,99,100,25,124,126,59,68,112,166)",classicgdbesancon,cont_11,0.0,10,0,0,3,0,,0,1,0
+396,Herning Classic,Hernin,c2_herning,10,18,1396,1396,5.0,1,organisateurs@gpherning.dk,"(99,147,150,162,110,161,135,152,164)",gpherning,cont_12,0.0,15,0,0,3,0,,0,1,0
+397,GP Fyen,GPFyen,c2_fyenrundt,10,18,1397,1397,5.0,1,organisateurs@fyenrundt.dk,"(99,147,150,162,110,161,135,152,164)",fyenrundt,cont_12,0.0,15,0,0,3,0,,0,1,0
+403,GP Pantaloni,Pantal,c1_pantaloni,2,17,1403,1403,10.0,1,organisateurs@gppantaloni.it,"(12,34,2,20,16,93,102,100,81,97,25,104,103,160)",gppantaloni,cont_11,0.0,10,0,0,3,0,,0,1,0
+404,GP Matteotti,Matteo,c1_matteotti,2,17,1404,1404,10.0,1,organisateurs@gpmatteotti.it,"(12,34,2,20,16,93,102,100,81,97,25,104,103,160)",gpmatteotti,cont_11,0.0,10,0,0,3,0,,0,1,0
+405,Classique de Québec,Québec,topclas_quebec,22,7,1405,1405,75.0,1,organisateurs@gpquebec.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125)",gpquebec,top_classiques_autres,0.0,10,0,2201,5,0,,0,1,0
+406,Classique de Montréal,Montré,topclas_montreal,22,7,1406,1406,75.0,1,organisateurs@gpmontreal.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99,97,125)",gpmontreal,top_classiques_autres,0.0,10,0,2201,5,0,,0,1,0
+407,Limburg Classic,Limbu,c1_mergelland,5,17,1407,1407,20.0,1,organisateurs@gpmergelland.nl,"(42,107,69,110,140,146,158,215,214)",gpmergelland,cont_11,0.0,9,0,0,3,0,,0,1,0
+408,Tour of Turkey,Turkey,t0_turkey,71,10,1408,8408,15.0,8,organisateurs@tourofturkey.com,"(10,12,16,25,33,37,69,35,92,100,40,38)",tourofturkey,cont_2hc,0.0,5,1,0,4,0,,0,1,0
+409,Veenendaal Classic,Veene,c1_veenendaal,5,17,1409,1409,25.0,1,organisateurs@dutchclassic.nl,"(15,9,10,14,2,81,69,110,140)",dutchvalleyclassic,cont_11,0.0,15,0,0,3,0,,0,1,0
+410,Tour de Bretagne,Bretag,t2_bretagne,3,12,1410,7410,9.0,7,organisateurs@tourbretagne.fr,"(237,126,124,203,209,210,215,206,135,68,147)",tourbretagne,cont_22,0.0,5,0,0,2,0,,0,1,0
+414,Ringerike Classic,Ringer,c2_nor-ringerike,35,18,1414,1414,8.0,1,organisateurs@ringerike.no,"(99,147,150,162,110,161,135,152,164)",ringerike,cont_12,0.0,9,0,0,3,0,,0,1,0
+415,Sundvolden Classic,Sundv,c2_nor-hadeland,35,18,1415,1415,5.0,1,organisateurs@sundvoldengp.no,"(99,147,150,162,110,161,135,152,164)",hadeland,cont_12,0.0,9,0,0,3,0,,0,1,0
+419,GP de la Solidarité,Solida,t2_solidarnosc,30,12,1419,4419,5.0,4,organisateurs@solidarnosc.pl,"(99,58,50,106,112,140,161,162,215,214)",solidarnosc,cont_22,0.0,4,0,0,1,0,,0,1,0
+449,Denmark championships (ITT),Ntt-DK,natitt-den,10,23,1449,1449,40.0,1,,(),champ_danemark_itt,default,0.0,13,0,0,3,0,,0,1,0
+450,Norway championships,N-NO,nat-nor,35,22,1450,1450,35.0,1,,(),champ_norway,default,0.0,9,0,0,3,0,,0,1,0
+451,Norway championships (ITT),Ntt-NO,natitt-nor,35,23,1451,1451,35.0,1,,(),champ_norway_itt,default,0.0,13,0,0,3,0,,0,1,0
+501,Cyanide Cup 1,Cya1,c3_cya-1,3,26,1501,1501,0.0,1,organisateurs@cyanide-studio.com,"(35,70,99,102,50,68,110,124,150,158)",cyanidecup1,cont_11,0.0,15,0,0,3,0,,0,1,0
+502,Cyanide Cup 2,Cya2,c3_cya-2,3,26,1502,1502,0.0,1,organisateurs@cyanide-studio.com,"(35,70,99,102,50,68,110,124,150,158)",cyanidecup2,cont_11,0.0,15,0,0,3,0,,0,1,0
+503,Cyanide Cup 3,Cya3,c3_cya-3,3,26,1503,1503,0.0,1,organisateurs@cyanide-studio.com,"(35,70,99,102,50,68,110,124,150,158)",cyanidecup3,cont_11,0.0,10,0,0,3,0,,0,1,0
+551,Geelong Oceania Race,Geelo,topclas_greatocean,20,9,1551,1551,40.0,1,organisateurs@greatoceanrace.com.au,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",greatoceanroadrace,top_classiques_autres,0.0,9,0,0,5,0,,0,1,0
+552,Classica Andorra,Andorr,c1_andorra,64,17,1552,1552,15.0,1,organisateurs@andorra-classic.com,"(1,5,6,11,14,34,35,70,81,92,100,102,105)",andorraclassica,cont_11,0.0,14,0,0,3,0,,0,1,0
+557,GP van Limburg,GPLim,c1_rondelimburg,4,17,1557,1557,15.0,1,organisateurs@rvlimburg.be,"(9,10,14,107,69,37,34,59,158,140,146,110)",rondevanlimburg,cont_11,0.0,15,0,0,3,0,,0,1,0
+560,Oberösterreichrundfahrt,Obero,t2_oberosterreich,37,12,1560,4560,5.0,4,organisateurs@oberosterreich.at,"(50,152,114,58,40,112,162,106)",oberosterreich,cont_22,0.0,5,0,0,3,0,,0,1,0
+563,Tour of Malopolska,Malop,t2_tourofmalopolska,30,12,1563,4563,2.0,4,organisateurs@tour-malopolska.pl,"(99,58,50,106,112,140,161,162,215,214)",tourofmalopolska,cont_22,0.0,5,0,0,3,0,,0,1,0
+565,Kampioenschap van Vlaanderen,KVlaa,c1_kampvlaanderen,4,17,1565,1565,5.0,1,organisateurs@kampioenschapvlaan.be,"(9,6,15,5,11,34,69,107,110,106)",kampvlaanderen,cont_11,0.0,15,0,0,3,0,,0,1,0
+566,GP Morvedre,Morved,c1_morvedre,8,17,1566,1566,10.0,1,organisateurs@classicamorvedre.es,"(1,10,12,13,16,20,25,34,70,81,92,100,102,103,107,59,105,126)",classicamorvedre,cont_11,0.0,23,0,0,3,0,,0,1,0
+567,Classica Castellón,Castel,c1_castellonceramica,8,17,1567,1567,10.0,1,organisateurs@castellonceramica.es,"(1,10,12,13,16,20,25,34,70,81,92,100,102,103,107,59,105,126)",castellonceramica,cont_11,0.0,10,0,0,3,0,,0,1,0
+568,Gooikse Pijl,GPijl,c2_gooiksepijl,4,17,1568,1568,5.0,1,organisateurs@gooiksepijl.be,"(215,209,203,207,206,242,213,214,150,135)",gooiksepijl,cont_11,0.0,15,0,0,3,0,,0,1,0
+569,GP València,GPVale,c1_classicavalenciana,8,17,1569,1569,10.0,1,organisateurs@classicavalenciana.es,"(102,3,34,20,1,92,81,25,100,35,42,9)",classicavalenciana,cont_11,0.0,9,0,0,3,0,,0,1,0
+571,Torres Vedras Tour,TVedr,t2_gptorresvedras,29,12,1571,3571,5.0,3,organisateurs@gptorresvedras.pt,"(35,70,92,100,38,96,105,109,242)",gptorresvedras,cont_22,0.0,4,0,0,3,0,,0,1,0
+572,Sibiu Tour,Sibiu,t1_sibiutour,104,11,1572,4572,5.0,4,organisateurs@sibiutour.ro,"(33,9,99,93,81,97,107,237,147,42,146,58,152,160)",sibiutour,cont_21,0.0,3,0,0,1,0,,0,1,0
+573,Giro U23,GiroU,t2u_girociclisto,2,13,1573,7573,10.0,7,organisateurs@girociclisto.it,"(203,233,211,201,213,215,205,202,210,225,214,216,212,206,209,237,135,104,160)",girociclisto,cont_22,0.0,2,0,0,3,0,,0,1,0
+575,GP du Jura,GJura,c1_jura,3,17,1575,1575,10.0,1,organisateurs@tourdujura.com,"(3,6,34,25,59,68,107,58,209,146,114,162,124,210)",tourdujura,cont_11,0.0,10,0,0,2,0,,0,1,0
+576,GP Larciano,Larci,c0_industriaprato,2,16,1576,1576,15.0,1,organisateurs@gpindustria-artigianato.it,"(5,11,12,2,16,13,81,102,103)",industriaartigianato,cont_1hc,0.0,10,0,0,3,0,,0,1,0
+580,Deutschland Rundfahrt,Deuts,t1_deutschland,7,10,1580,5580,35.0,5,organisateurs@deutschlandtour.de,"(10,15,3,2,33,14,37,152,40,114)",deutschlandtour,cont_2hc,0.0,4,1,0,3,0,,0,1,0
+581,Circuit Laguna,Lagun,c2_laguna,44,18,1581,1581,8.0,1,organisateurs@lacunagp.hr,"(81,50,112,114,113,162,58,96,214)",gplacuna,cont_12,0.0,9,0,0,3,0,,0,1,0
+583,GP Palio del Recioto,Palio,c2u_gppalio,2,19,1583,1583,5.0,1,organisateurs@gppalio.it,"(81,104,212,135,114,209,213,233,160,214,216)",gppalio,cont_12,0.0,10,0,0,3,0,,0,1,0
+585,Tour of Croatia,Croat,t1_croatia,44,10,1585,6585,25.0,6,organisateurs@tourcroatia.hr,"(13,11,12,35,37,42,123,81,50)",tourcroatia,cont_2hc,0.0,3,1,0,1,0,,0,1,0
+586,Vuelta Asturias,Astur,t1_asturias,8,11,1586,3586,20.0,3,organisateurs@vuelta-asturias.es,"(1,35,38,92,102,95,100,123,109)",vueltaasturias,cont_21,0.0,18,0,803,2,0,,0,1,0
+588,GP of Guangxi,Guang,top_guangxi,25,5,1588,6588,30.0,6,organisateurs@tourofguangxi.com,"(1,2,3,5,6,9,10,11,12,13,14,15,16,20,33,37,42,99)",tourofguangxi,top_pologne,0.0,5,0,0,5,0,,0,1,0
+589,Rhodes Grand Prix,RhoGP,c2_rhodesgp,60,18,1589,1589,5.0,1,organisateurs@rhodesgp.com,"(150,212,213,106,160,161,162,163,205,135)",rhodesgp,cont_12,0.0,15,0,0,3,0,,0,1,0
+590,Tour of Rhodes,RhoTo,t2_rhodestour,60,12,1590,4590,5.0,4,organisateurs@rhodestour.com,"(150,212,213,106,160,161,162,163,205,135)",rhodestour,cont_22,0.0,16,0,0,3,0,,0,1,0
+591,Circuit de Lillers,Llers,c2_gplillers,3,18,1591,1591,2.0,1,organisateurs@gplillers.fr,"(40,42,58,59,68,69,107,99,237,209,110)",gplillers,cont_12,0.0,15,0,0,3,0,,0,1,0
+593,GP Roeselare,Roese,c1_gproeselare,4,17,1593,1593,5.0,1,organisateurs@gproeselare.be,"(9,25,69,42,107,140,146,34,99,13,12,35,70)",gpmonsere,cont_11,0.0,15,0,0,3,0,,0,1,0
+595,Abruzzo Tour,Abruzz,t1_sicilia,2,11,1595,4595,15.0,4,organisateurs@girodisicilia.it,"(16,93,81,35,25,42,152,102,160,103)",girodisicilia,cont_21,0.0,18,0,219,2,0,,0,1,0
+596,GP du Tourangeau,Touran,c1_rouetourangelle,3,17,1596,1596,10.0,1,organisateurs@rouetourangelle.fr,"(3,6,25,34,42,59,68,107,69,35,40)",rouetourangelle,cont_11,0.0,9,0,0,3,0,,0,1,0
+598,Route Poitou-Charentes,Poitou,t1_poitoucharentes,3,11,1598,5598,15.0,5,organisateurs@tpoitoucharentes.fr,"(25,3,6,34,211,68,59,123,124,126,146,107,81,102)",tpoitoucharentes,cont_21,0.0,8,0,320,1,0,,0,1,0
+599,Classique du Mercantour,Mercan,c1_mercantour,3,17,1599,1599,20.0,1,organisateurs@mercantourclassic.fr,"(3,6,34,25,59,68,15,35,99,135,114)",mercantourclassic,cont_11,0.0,14,0,0,3,0,,0,1,0
+601,Trofeo PIVA,uPiva,c2u_trofeopiva,2,19,1601,1601,2.0,1,organisateurs@trofeopiva.it,"(215,209,203,207,206,242,213,214,150,135)",trofeopiva,cont_12,0.0,10,0,0,3,0,,0,1,0
+602,Giro Belvedere di Villa di Cordignano,uBelve,c2u_girobelvedere,2,19,1602,1602,2.0,1,organisateurs@girobelvedere.it,"(215,209,203,207,206,242,213,214,150,135)",girobelvedere,cont_12,0.0,10,0,0,3,0,,0,1,0
+604,Gran Premio della Liberazione,ULibe,c2u_gpliberazione,2,19,1604,1604,2.0,1,organisateurs@gpdellaliberazione.it,"(215,209,203,207,206,242,213,214,150,135)",gpdellaliberazione,cont_12,0.0,9,0,0,3,0,,0,1,0
+607,Trofej Umag - Umag Trophy,Umag,c2_umagtrophy,44,18,1607,1607,2.0,1,organisateurs@trofejumag.com,"(215,209,203,207,206,242,213,214,150,135)",trofejumag,cont_12,0.0,10,0,0,3,0,,0,1,0
+609,Rabobank Dorpenomloop Rucphen,RaboD,c2_rabodorpen,5,18,1609,1609,2.0,1,organisateurs@rabodorpenomloop.nl,"(215,209,203,207,206,242,213,214,150,135)",rabodorpenomloop,cont_12,0.0,10,0,0,3,0,,0,1,0
+613,Tour du Loir et Cher E Provost,LoirC,t2_tourloiretcher,3,12,1613,5613,2.0,5,organisateurs@loiretcher.fr,"(215,209,203,207,206,242,213,214,150,135)",loiretcher,cont_22,0.0,5,0,0,2,0,,0,1,0
+614,U23 Koksijde Challenge,U23Kok,c2u_youngcoast,4,19,1614,1614,2.0,1,organisateurs@youngstercoastchallenge.be,"(215,209,203,207,206,242,213,214,150,135)",youngcoastchallenge,cont_12,0.0,17,0,0,3,0,,0,1,0
+615,Rund um den Finanzplatz U23,FrkU23,c2u_gpfrankfurt,7,19,1615,1615,2.0,1,organisateurs@frankfurt-gp.de,"(215,209,203,207,206,242,213,214,150,135)",rundumu23,cont_12,0.0,10,0,0,3,0,,0,1,0
+618,Paris - Roubaix Espoirs,RouU23,c2u_roubaix,3,19,1618,1618,10.0,1,organisateurs@parisroubaix-u23.fr,"(215,209,203,207,206,242,213,214,150,135)",parisroubaixu23,cont_12,0.0,11,0,0,3,0,,0,1,0
+619,Paris - Tours Espoirs,TouU23,c2u_paristours,3,19,1619,1619,5.0,1,organisateurs@paristours-u23.fr,"(215,209,203,207,206,242,213,214,150,135)",paristoursu23,cont_12,0.0,15,0,0,3,0,,0,1,0
+620,European Championships,Euro,euro,3,33,1620,1620,75.0,1,organisateurs@euro-ch.org,(),eurochampionship,default,0.0,14,0,0,3,0,,0,1,0
+621,European Championships ITT,EuroTT,euroitt,3,34,1621,1621,70.0,1,organisateurs@euro-ch.org,(),eurochampionshipitt,default,0.0,13,0,0,3,0,,0,1,0

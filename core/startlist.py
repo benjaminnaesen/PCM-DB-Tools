@@ -31,11 +31,22 @@ def _normalize(text):
     return ' '.join(text.split())
 
 
+def _normalize_team(text):
+    """Like _normalize but also splits camelCase (QuickStep → Quick Step).
+
+    Used only for team names — applying this to surnames breaks Mc/Mac
+    prefixes (McKenzie → Mc Kenzie) causing rider lookup mismatches.
+    """
+    text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+    return _normalize(text)
+
+
 def _name_similarity(a, b):
     """Score similarity between two normalised name strings (0.0 to 1.0).
 
-    Uses a combination of token overlap and containment checks to handle
-    cases like "Team TotalEnergies" vs "TotalEnergies".
+    Uses token overlap plus partial credit when one token is a substring of
+    another, so "quickstep" (one word in the DB) still matches "quick step"
+    (two words from the source site).
     """
     if not a or not b:
         return 0.0
@@ -46,15 +57,24 @@ def _name_similarity(a, b):
     if a in b or b in a:
         return 0.9
 
-    # Token-based Jaccard with min denominator (more forgiving)
     sa, sb = set(a.split()), set(b.split())
     if not sa or not sb:
         return 0.0
     filler = {'team', 'pro', 'cycling'}
     sa_clean = sa - filler or sa
     sb_clean = sb - filler or sb
-    overlap = len(sa_clean & sb_clean)
-    return overlap / max(len(sa_clean), len(sb_clean))
+    overlap = float(len(sa_clean & sb_clean))
+
+    # Partial credit for compound-word matches:
+    # "quickstep" vs {"quick","step"} — each sub-token inside a compound scores 0.5
+    matched_b = sa_clean & sb_clean
+    for ta in sa_clean:
+        for tb in sb_clean - matched_b:
+            if len(ta) >= 4 and len(tb) >= 4 and (ta in tb or tb in ta):
+                overlap += 0.5
+                matched_b.add(tb)
+
+    return min(overlap / max(len(sa_clean), len(sb_clean)), 1.0)
 
 
 # ===========================================================================
@@ -90,7 +110,7 @@ class StartlistDatabase:
             for key in ('gene_sz_name', 'gene_sz_shortname'):
                 val = t.get(key, '')
                 if val:
-                    norm = _normalize(str(val))
+                    norm = _normalize_team(str(val))
                     if norm:
                         self._team_index[norm] = tid
 
@@ -159,7 +179,7 @@ class StartlistDatabase:
         Returns:
             (IDteam, matched_name) tuple, or (None, None) if no match.
         """
-        norm = _normalize(name)
+        norm = _normalize_team(name)
 
         if norm in self._team_index:
             return self._team_index[norm], name
@@ -169,7 +189,7 @@ class StartlistDatabase:
             for key in ('gene_sz_name', 'gene_sz_shortname'):
                 val = t.get(key, '')
                 if val:
-                    score = _name_similarity(norm, _normalize(str(val)))
+                    score = _name_similarity(norm, _normalize_team(str(val)))
                     if score > best_score:
                         best_score = score
                         best_id = t.get('IDteam')
