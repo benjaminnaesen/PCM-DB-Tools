@@ -27,7 +27,8 @@ A desktop application bundling modding tools for Pro Cycling Manager (PCM), incl
 
 ### Startlist Generator
 
-- **HTML Parsing**: Convert saved startlist pages from FirstCycling or ProCyclingStats into PCM-compatible XML
+- **URL-based Fetching**: Paste a ProCyclingStats startlist URL and fetch it directly
+- **Auto Race Selection**: Pasting a URL automatically selects the matching race from the dropdown
 - **Database Matching**: Match rider/team names to PCM database IDs using CSV databases or an opened CDB file
 - **Progress Tracking**: Real-time log output and progress bar during conversion
 
@@ -35,7 +36,7 @@ A desktop application bundling modding tools for Pro Cycling Manager (PCM), incl
 
 - **Python**: 3.10 or higher
 - **Operating System**: Windows (required for SQLiteExporter.exe)
-- **Dependencies**: Install with pip (see below)
+- **Dependencies**: PySide6, beautifulsoup4, cloudscraper — install with pip (see below)
 
 ## Installation
 
@@ -43,10 +44,6 @@ A desktop application bundling modding tools for Pro Cycling Manager (PCM), incl
 2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
-   ```
-3. **Verify tkinter** is available (usually included with Python on Windows):
-   ```bash
-   python -m tkinter
    ```
 
 ## Usage
@@ -146,15 +143,9 @@ From the **Tools** menu:
 
 The startlist generator has two tabs: **Singleplayer** (HTML to XML) and **Multiplayer** (HTML + CDB to modified CDB).
 
-#### Singleplayer: HTML to XML Startlist
+#### Singleplayer: URL to XML Startlist
 
-Use this to generate a PCM-compatible XML startlist file from a saved HTML page.
-
-**Preparing the HTML file:**
-1. Go to the startlist page on [FirstCycling](https://firstcycling.com) or [ProCyclingStats](https://www.procyclingstats.com)
-2. Right-click anywhere on the page and select **"Save as..."** (or press Ctrl+S)
-3. In the save dialog, set "Save as type" to **"Webpage, HTML Only"**
-4. Save the `.html` file somewhere you can find it, then browse to it in the app
+Use this to generate a PCM-compatible XML startlist file from a live startlist URL.
 
 **Step-by-step:**
 
@@ -163,11 +154,11 @@ Use this to generate a PCM-compatible XML startlist file from a saved HTML page.
    - Pick a CSV database from the dropdown (databases stored in the `databases/` folder), OR
    - Click **Open CDB...** to load a `.cdb` file directly
 3. The database status will confirm how many teams and cyclists were loaded
-4. Click **Browse...** to select an HTML startlist file saved from [FirstCycling](https://firstcycling.com) or [ProCyclingStats](https://www.procyclingstats.com)
-5. **Select a race** from the dropdown -- this determines the output XML filename. The race list is populated from the database's `STA_race` table
-6. Click **Generate Startlist**
-7. The log will show the matching progress: which teams and riders were matched to database IDs, and which were not found
-8. The output XML file is saved to the working directory
+4. **Paste a startlist URL** from [ProCyclingStats](https://www.procyclingstats.com) into the URL field — the race dropdown will auto-select the matching race
+5. **Verify the race** selection in the dropdown (or pick one manually)
+6. Click **Fetch** to download the startlist, then **Generate Startlist**
+7. A **Save As** dialog will open — choose where to save the output XML file
+8. The log will show the matching progress: which teams and riders were matched to database IDs, and which were not found
 
 #### Multiplayer: CDB Startlist Modification
 
@@ -181,7 +172,7 @@ Use this to create a modified CDB where teams are trimmed to their race startlis
 
 1. Go to the **Multiplayer** tab in the Startlist Generator
 2. Click **Load CDB...** to select and convert your `.cdb` database
-3. Click **Browse...** to select the HTML startlist file
+3. **Paste the startlist URL** into the URL field
 4. Click **Save as...** to choose the output `.cdb` file path
 5. Click **Generate CDB Startlist**
 6. A backup reminder will appear -- make sure you have a copy of your original CDB
@@ -218,7 +209,7 @@ Use this to create a modified CDB where teams are trimmed to their race startlis
 | `.sqlite` | SQLite database (used internally during editing) |
 | `.csv` | Comma-separated values (for bulk data import/export) |
 | `.xml` | PCM startlist format (output of Singleplayer generator) |
-| `.html` | Saved web page from FirstCycling or ProCyclingStats (input for startlist generators) |
+| `.html` | Startlist page fetched from ProCyclingStats (used internally) |
 
 The application automatically handles conversion between CDB and SQLite formats using the bundled SQLiteExporter.exe tool.
 
@@ -290,8 +281,8 @@ python -m unittest tests.test_app_state
 
 ## Troubleshooting
 
-**"Module tkinter not found"**
-Tkinter is included with Python on Windows. Reinstall Python ensuring "tcl/tk and IDLE" is selected.
+**"Module PySide6 not found"**
+Run `pip install -r requirements.txt` to install all dependencies.
 
 **"SQLiteExporter.exe not found"**
 Ensure the `SQLiteExporter/` folder is in the same directory as `main.py`.

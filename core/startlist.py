@@ -1,9 +1,9 @@
 """
 Startlist generation from HTML sources.
 
-Parses cycling race startlists from FirstCycling and ProCyclingStats HTML
-files, matches team/rider names against the open PCM database, and writes
-PCM-compatible XML output.
+Parses cycling race startlists from ProCyclingStats HTML pages, matches
+team/rider names against the open PCM database, and writes PCM-compatible
+XML output.
 """
 
 import csv
@@ -261,10 +261,10 @@ class StartlistDatabase:
 # ===========================================================================
 
 class StartlistParser:
-    """Parses cycling startlists from various website HTML formats.
+    """Parses cycling startlists from ProCyclingStats HTML pages.
 
-    Supports FirstCycling and ProCyclingStats with several fallback
-    strategies for generic table/list/div layouts.
+    Falls back to generic table/list/div strategies if the PCS-specific
+    parser does not match.
     """
 
     def parse_file(self, filepath):
@@ -281,13 +281,8 @@ class StartlistParser:
             return None
 
     def _parse_html(self, html_content):
-        """Route HTML to the correct site-specific or generic parser."""
+        """Route HTML to the PCS-specific parser or generic fallbacks."""
         soup = BeautifulSoup(html_content, 'html.parser')
-
-        if self._is_firstcycling(soup):
-            result = self._parse_firstcycling(soup)
-            if result:
-                return result
 
         if self._is_procyclingstats(soup):
             result = self._parse_procyclingstats(soup)
@@ -304,44 +299,6 @@ class StartlistParser:
                 return result
 
         return None
-
-    # -- FirstCycling --------------------------------------------------------
-
-    @staticmethod
-    def _is_firstcycling(soup):
-        """Check if HTML is from FirstCycling."""
-        return bool(soup.find('a', href=lambda x: x and 'firstcycling.com' in x))
-
-    @staticmethod
-    def _parse_firstcycling(soup):
-        """Parse a FirstCycling startlist page (tablesorter tables with rider.php links)."""
-        startlist = {}
-
-        for table in soup.find_all('table', class_='tablesorter'):
-            thead = table.find('thead')
-            if not thead:
-                continue
-            th = thead.find('th')
-            if not th:
-                continue
-
-            team_link = th.find('a')
-            team_name = team_link.get_text(strip=True) if team_link else th.get_text(strip=True)
-            if not team_name:
-                continue
-
-            riders = []
-            for row in table.find_all('tr'):
-                link = row.find('a', href=lambda x: x and 'rider.php' in x)
-                if link:
-                    name = link.get('title', '').strip() or link.get_text(strip=True)
-                    if name:
-                        riders.append(name)
-
-            if riders:
-                startlist[team_name] = riders
-
-        return startlist or None
 
     # -- ProCyclingStats -----------------------------------------------------
 
@@ -665,8 +622,8 @@ def apply_multiplayer_startlist(db_path, team_ids, rider_ids):
 def fetch_startlist_url(url):
     """Fetch an HTML startlist page from a URL.
 
-    Uses cloudscraper to bypass Cloudflare anti-bot protection on sites
-    like ProCyclingStats and FirstCycling.
+    Uses cloudscraper to bypass Cloudflare anti-bot protection on
+    ProCyclingStats.
 
     Args:
         url: The URL to fetch.

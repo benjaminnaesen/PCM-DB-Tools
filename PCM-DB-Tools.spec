@@ -43,5 +43,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='PCM Database Tools',
+    name='PCM Database Tools 1.2.1',
 )

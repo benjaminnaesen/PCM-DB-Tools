@@ -1,8 +1,8 @@
 """
 Startlist generator view.
 
-Full-frame view for converting saved HTML startlists from FirstCycling
-or ProCyclingStats into PCM-compatible XML files.  Supports loading
+Full-frame view for fetching ProCyclingStats startlists via URL and
+converting them into PCM-compatible XML files.  Supports loading
 team/cyclist data from a CDB file.
 
 Two tabs:
@@ -125,27 +125,26 @@ class StartlistView(QWidget):
         db_lay.addWidget(self.db_status)
         layout.addWidget(db_group)
 
-        # HTML file input
-        file_group = QGroupBox("HTML startlist file")
-        file_lay = QVBoxLayout(file_group)
-        file_row = QHBoxLayout()
+        # Startlist URL input
+        # NOTE: self.file_edit is kept as a hidden widget; _convert uses it
+        # to hold the path of the fetched temp file. Re-add Browse row here
+        # if file-based input needs to be restored.
         self.file_edit = QLineEdit()
-        file_row.addWidget(self.file_edit, 1)
-        browse_btn = QPushButton("Browse\u2026")
-        browse_btn.clicked.connect(self._browse_file)
-        file_row.addWidget(browse_btn)
-        file_lay.addLayout(file_row)
 
+        startlist_group = QGroupBox("Startlist URL")
+        startlist_lay = QVBoxLayout(startlist_group)
         url_row = QHBoxLayout()
-        url_row.addWidget(QLabel("or URL:"))
+        url_row.addWidget(QLabel("URL:"))
         self.url_edit = QLineEdit()
+        self.url_edit.setPlaceholderText(
+            "https://www.procyclingstats.com/race/.../startlist")
         self.url_edit.textChanged.connect(self._try_select_race_from_url)
         url_row.addWidget(self.url_edit, 1)
         fetch_btn = QPushButton("Fetch")
         fetch_btn.clicked.connect(self._fetch_url)
         url_row.addWidget(fetch_btn)
-        file_lay.addLayout(url_row)
-        layout.addWidget(file_group)
+        startlist_lay.addLayout(url_row)
+        layout.addWidget(startlist_group)
 
         # Race selection
         race_group = QGroupBox("Race")
@@ -212,20 +211,19 @@ class StartlistView(QWidget):
         cdb_lay.addWidget(self.mp_cdb_status)
         layout.addWidget(cdb_group)
 
-        # HTML startlist input
-        html_group = QGroupBox("HTML startlist file")
-        html_lay = QVBoxLayout(html_group)
-        html_row = QHBoxLayout()
+        # Startlist URL input
+        # NOTE: self.mp_html_edit is kept as a hidden widget; _mp_process
+        # uses it to hold the fetched temp file path. Re-add Browse row here
+        # if file-based input needs to be restored.
         self.mp_html_edit = QLineEdit()
-        html_row.addWidget(self.mp_html_edit, 1)
-        html_btn = QPushButton("Browse\u2026")
-        html_btn.clicked.connect(self._mp_browse_html)
-        html_row.addWidget(html_btn)
-        html_lay.addLayout(html_row)
 
+        html_group = QGroupBox("Startlist URL")
+        html_lay = QVBoxLayout(html_group)
         mp_url_row = QHBoxLayout()
-        mp_url_row.addWidget(QLabel("or URL:"))
+        mp_url_row.addWidget(QLabel("URL:"))
         self.mp_url_edit = QLineEdit()
+        self.mp_url_edit.setPlaceholderText(
+            "https://www.procyclingstats.com/race/.../startlist")
         mp_url_row.addWidget(self.mp_url_edit, 1)
         mp_fetch_btn = QPushButton("Fetch")
         mp_fetch_btn.clicked.connect(self._mp_fetch_url)
@@ -276,17 +274,11 @@ class StartlistView(QWidget):
 
     @staticmethod
     def _extract_race_slug(url):
-        """Return the race slug from a PCS or FirstCycling URL, or None."""
+        """Return the race slug from a ProCyclingStats URL, or None."""
         import re
         # ProCyclingStats: procyclingstats.com/race/{slug}/...
         m = re.search(r'procyclingstats\.com/race/([^/?#]+)', url)
-        if m:
-            return m.group(1)
-        # FirstCycling: firstcycling.com/race/{slug}/...
-        m = re.search(r'firstcycling\.com/race/([^/?#]+)', url)
-        if m:
-            return m.group(1)
-        return None
+        return m.group(1) if m else None
 
     def _try_select_race_from_url(self, url):
         """Auto-select the best-matching race in the combo when a URL is pasted."""

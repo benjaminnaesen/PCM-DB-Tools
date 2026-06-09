@@ -7,7 +7,7 @@ used throughout the application, centralized for easy maintenance.
 
 # App metadata
 APP_NAME = "PCM Database Tools"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 
 # Pagination settings
 ROW_CHUNK_SIZE = 50  # Number of rows loaded per scroll chunk
