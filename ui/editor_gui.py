@@ -81,8 +81,36 @@ class PCMDatabaseTools(QMainWindow):
         self.welcome_screen.startlist_requested.connect(self.show_startlist)
         self.stack.addWidget(self.welcome_screen)
 
-        # Page 1: Editor
+        # Page 1: Editor — force light mode regardless of system theme
         editor_page = QWidget()
+        editor_page.setStyleSheet(
+            "QWidget { background-color: #f0f0f0; color: #212121; }"
+            "QPushButton {"
+            "  background-color: #e1e1e1; color: #212121;"
+            "  border: 1px solid #adadad; border-radius: 2px; padding: 4px 10px;"
+            "}"
+            "QPushButton:hover { background-color: #e5f1fb; border-color: #0078d4; }"
+            "QPushButton:pressed { background-color: #cce4f7; }"
+            "QPushButton:checked { background-color: #cce4f7; border-color: #0078d4; }"
+            "QPushButton:disabled { color: #a0a0a0; background-color: #f0f0f0; }"
+            "QToolButton {"
+            "  background-color: #e1e1e1; color: #212121;"
+            "  border: 1px solid #adadad; border-radius: 2px; padding: 4px 10px;"
+            "}"
+            "QToolButton::menu-indicator { image: none; }"
+            "QLineEdit {"
+            "  background-color: #ffffff; color: #212121;"
+            "  border: 1px solid #adadad; border-radius: 2px; padding: 2px 4px;"
+            "}"
+            "QLabel { background-color: transparent; color: #212121; }"
+            "QScrollBar:vertical { background-color: #f0f0f0; width: 14px; border: none; }"
+            "QScrollBar::handle:vertical { background-color: #c0c0c0; border-radius: 3px; min-height: 20px; }"
+            "QScrollBar:horizontal { background-color: #f0f0f0; height: 14px; border: none; }"
+            "QScrollBar::handle:horizontal { background-color: #c0c0c0; border-radius: 3px; min-width: 20px; }"
+            "QMenu { background-color: #ffffff; color: #212121; border: 1px solid #ccc; }"
+            "QMenu::item:selected { background-color: #0078d4; color: #ffffff; }"
+            "QSplitter::handle { background-color: #d0d0d0; }"
+        )
         editor_layout = QVBoxLayout(editor_page)
         editor_layout.setContentsMargins(0, 0, 0, 0)
         editor_layout.setSpacing(0)
@@ -121,10 +149,7 @@ class PCMDatabaseTools(QMainWindow):
         toolbar = QWidget()
         toolbar.setObjectName("editorToolbar")
         toolbar.setStyleSheet(
-            "#editorToolbar { background: #f0f0f0;"
-            "  border-bottom: 1px solid #ccc; }"
-            "#editorToolbar QPushButton, #editorToolbar QToolButton {"
-            "  padding: 4px 10px; }"
+            "#editorToolbar { border-bottom: 1px solid #ccc; }"
         )
         tb = QHBoxLayout(toolbar)
         tb.setContentsMargins(8, 8, 8, 8)

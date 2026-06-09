@@ -366,8 +366,16 @@ class TableView(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
         self.table.setStyleSheet(
-            "QTableView { gridline-color: #ddd;"
-            "  alternate-background-color: #f4f4f4; }"
+            "QTableView {"
+            "  gridline-color: #ddd;"
+            "  background-color: #ffffff;"
+            "  alternate-background-color: #f4f4f4;"
+            "  color: #212121;"
+            "}"
+            "QTableView::item:selected {"
+            "  background-color: #0078d4;"
+            "  color: #ffffff;"
+            "}"
         )
 
         header = self.table.horizontalHeader()
