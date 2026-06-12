@@ -1,0 +1,5 @@
+# Ignore all user-added databases; only the Default Database is tracked.
+*
+!.gitignore
+!Default Database/
+!Default Database/**

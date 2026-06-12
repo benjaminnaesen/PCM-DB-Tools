@@ -24,10 +24,15 @@ from core.constants import DB_CHUNK_SIZE
 # ---------------------------------------------------------------------------
 
 def _normalize(text):
-    """Lowercase, strip accents, and remove non-alphanumeric characters."""
+    """Lowercase, strip accents, and remove non-alphanumeric characters.
+
+    ß is expanded to 'ss'. Hyphens become spaces so 'Lidl-Trek', 'Lidl Trek',
+    and 'Lidl - Trek' all normalize identically.
+    """
     text = unicodedata.normalize('NFD', text)
     text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
-    text = re.sub(r'[^a-z0-9 ]', ' ', text.lower())
+    text = text.lower().replace('ß', 'ss')
+    text = re.sub(r'[^a-z0-9 ]', ' ', text)
     return ' '.join(text.split())
 
 
@@ -119,6 +124,11 @@ class StartlistDatabase:
             if last:
                 norm = _normalize(str(last))
                 self._cyclist_by_last.setdefault(norm, []).append(c)
+                # Also index compact form so "Arriola-Bengoa" (→ "arriola bengoa")
+                # is findable as "arriolabengoa".
+                compact = norm.replace(' ', '')
+                if compact != norm:
+                    self._cyclist_by_last.setdefault(compact, []).append(c)
 
     @classmethod
     def from_sqlite(cls, db_path):
@@ -219,9 +229,21 @@ class StartlistDatabase:
 
         candidates = list(self._cyclist_by_last.get(last_norm, []))
         if not candidates:
+            # Compact fallback: collapse spaces so "arriolabengoa" finds
+            # "Arriola-Bengoa" indexed as "arriola bengoa", and vice versa.
+            compact = last_norm.replace(' ', '')
+            if compact != last_norm:
+                candidates = list(self._cyclist_by_last.get(compact, []))
+        if not candidates:
             candidates = list(self._cyclist_by_last.get(last_norm_alt, []))
             if candidates:
                 first_norm = first_norm_alt
+        if not candidates:
+            compact_alt = last_norm_alt.replace(' ', '')
+            if compact_alt != last_norm_alt:
+                candidates = list(self._cyclist_by_last.get(compact_alt, []))
+                if candidates:
+                    first_norm = first_norm_alt
 
         # Also include partial last name matches (handles hyphenated /
         # double-barrelled surnames like "Martin-Guyonnet" vs "Martin")

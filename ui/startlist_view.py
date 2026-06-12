@@ -11,14 +11,16 @@ Two tabs:
                     on participating teams moved to team 119
 """
 
+import csv
 import gc
 import os
+import sqlite3
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QProgressBar, QPushButton, QTabWidget,
-    QTextEdit, QVBoxLayout, QWidget,
+    QInputDialog, QLineEdit, QMessageBox, QProgressBar, QPushButton,
+    QTabWidget, QTextEdit, QVBoxLayout, QWidget,
 )
 
 import core.converter as converter
@@ -30,10 +32,8 @@ from core.startlist import (
 from ui.ui_utils import run_async
 
 
-# databases/ folder next to main.py
 DATABASES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'databases',
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'databases'
 )
 
 
@@ -42,8 +42,9 @@ class StartlistView(QWidget):
 
     go_home = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, app_state=None):
         super().__init__(parent)
+        self.app_state = app_state
         self.parser = StartlistParser()
         self.writer = PCMXmlWriter()
         self.db = None
@@ -54,6 +55,7 @@ class StartlistView(QWidget):
         self.mp_temp_path = None
 
         self._build_ui()
+        self._restore_db_selection()
         self._load_selected_db()
 
     # ==================================================================
@@ -114,9 +116,8 @@ class StartlistView(QWidget):
             lambda: self._load_selected_db())
         db_row.addWidget(self.db_combo, 1)
 
-        db_row.addWidget(QLabel("or"))
-        cdb_btn = QPushButton("Open CDB\u2026")
-        cdb_btn.clicked.connect(self._load_cdb)
+        cdb_btn = QPushButton("Add CDB Database\u2026")
+        cdb_btn.clicked.connect(self._add_cdb_database)
         db_row.addWidget(cdb_btn)
         db_lay.addLayout(db_row)
 
@@ -139,10 +140,8 @@ class StartlistView(QWidget):
         self.url_edit.setPlaceholderText(
             "https://www.procyclingstats.com/race/.../startlist")
         self.url_edit.textChanged.connect(self._try_select_race_from_url)
+        self.url_edit.textChanged.connect(lambda _: self.file_edit.clear())
         url_row.addWidget(self.url_edit, 1)
-        fetch_btn = QPushButton("Fetch")
-        fetch_btn.clicked.connect(self._fetch_url)
-        url_row.addWidget(fetch_btn)
         startlist_lay.addLayout(url_row)
         layout.addWidget(startlist_group)
 
@@ -163,7 +162,7 @@ class StartlistView(QWidget):
         layout.addWidget(race_group)
 
         # Generate button
-        gen_btn = QPushButton("Generate Startlist")
+        gen_btn = QPushButton("Generate XML Startlist as…")
         gen_btn.setStyleSheet(
             "QPushButton { background: #2e8b57; color: white; padding: 6px 16px; }"
             "QPushButton:hover { background: #267349; }")
@@ -224,27 +223,14 @@ class StartlistView(QWidget):
         self.mp_url_edit = QLineEdit()
         self.mp_url_edit.setPlaceholderText(
             "https://www.procyclingstats.com/race/.../startlist")
+        self.mp_url_edit.textChanged.connect(
+            lambda _: self.mp_html_edit.clear())
         mp_url_row.addWidget(self.mp_url_edit, 1)
-        mp_fetch_btn = QPushButton("Fetch")
-        mp_fetch_btn.clicked.connect(self._mp_fetch_url)
-        mp_url_row.addWidget(mp_fetch_btn)
         html_lay.addLayout(mp_url_row)
         layout.addWidget(html_group)
 
-        # Output CDB file
-        out_group = QGroupBox("Output CDB file")
-        out_lay = QVBoxLayout(out_group)
-        out_row = QHBoxLayout()
-        self.mp_out_edit = QLineEdit()
-        out_row.addWidget(self.mp_out_edit, 1)
-        save_btn = QPushButton("Save as\u2026")
-        save_btn.clicked.connect(self._mp_browse_output)
-        out_row.addWidget(save_btn)
-        out_lay.addLayout(out_row)
-        layout.addWidget(out_group)
-
         # Process button
-        proc_btn = QPushButton("Generate CDB Startlist")
+        proc_btn = QPushButton("Generate CDB Startlist as…")
         proc_btn.setStyleSheet(
             "QPushButton { background: #2e8b57; color: white; padding: 6px 16px; }"
             "QPushButton:hover { background: #267349; }")
@@ -276,9 +262,8 @@ class StartlistView(QWidget):
     def _extract_race_slug(url):
         """Return the race slug from a ProCyclingStats URL, or None."""
         import re
-        # ProCyclingStats: procyclingstats.com/race/{slug}/...
-        m = re.search(r'procyclingstats\.com/race/([^/?#]+)', url)
-        return m.group(1) if m else None
+        matches = re.findall(r'procyclingstats\.com/race/([^/?#]+)', url)
+        return matches[-1] if matches else None
 
     def _try_select_race_from_url(self, url):
         """Auto-select the best-matching race in the combo when a URL is pasted."""
@@ -315,6 +300,7 @@ class StartlistView(QWidget):
         db_path = os.path.join(DATABASES_DIR, name)
         self.db = StartlistDatabase.from_csv_folder(db_path)
         self._populate_races()
+        self._save_prefs(name)
 
         if self.db.loaded:
             msg = (f"Database '{name}' loaded: {len(self.db.teams)} teams, "
@@ -327,36 +313,85 @@ class StartlistView(QWidget):
             self.db_status.setStyleSheet("color: #c00; font-size: 9pt;")
             self._log(f"WARNING: Database '{name}' missing CSV files.")
 
-    def _load_cdb(self):
+    def _save_prefs(self, db_name):
+        if self.app_state is None:
+            return
+        self.app_state.settings['startlist_db'] = db_name
+        self.app_state.save_partial()
+
+    def _restore_db_selection(self):
+        if self.app_state is None:
+            return
+        saved = self.app_state.settings.get('startlist_db', '')
+        if saved:
+            idx = self.db_combo.findText(saved)
+            if idx >= 0:
+                self.db_combo.blockSignals(True)
+                self.db_combo.setCurrentIndex(idx)
+                self.db_combo.blockSignals(False)
+
+    def _add_cdb_database(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "Select CDB file", "", "CDB files (*.cdb)")
         if not path:
             return
 
+        default_name = os.path.splitext(os.path.basename(path))[0]
+        name, ok = QInputDialog.getText(
+            self, "Database name", "Name for this database:", text=default_name)
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+
+        dest_folder = os.path.join(DATABASES_DIR, name)
+        if os.path.isdir(dest_folder):
+            reply = QMessageBox.question(
+                self, "Overwrite?",
+                f"Database '{name}' already exists. Overwrite?",
+                QMessageBox.Yes | QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return
+
         def task():
             gc.collect()
-            return converter.export_cdb_to_sqlite(path)
+            temp_path = converter.export_cdb_to_sqlite(path)
+            os.makedirs(dest_folder, exist_ok=True)
+            with sqlite3.connect(temp_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                for table in ('DYN_team', 'DYN_cyclist', 'STA_race'):
+                    cur.execute(
+                        "SELECT name FROM sqlite_master "
+                        "WHERE type='table' AND name=?", (table,))
+                    if not cur.fetchone():
+                        continue
+                    cur.execute(f"SELECT * FROM [{table}]")
+                    rows = cur.fetchall()
+                    if not rows:
+                        continue
+                    out_path = os.path.join(dest_folder, f'{table}.csv')
+                    with open(out_path, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+                        writer.writeheader()
+                        writer.writerows([dict(r) for r in rows])
+            return name
 
-        def on_success(temp_path):
-            self.temp_path = temp_path
-            self.db = StartlistDatabase.from_sqlite(temp_path)
-            self.db_combo.setCurrentIndex(-1)
-            self._populate_races()
-            if self.db.loaded:
-                msg = (f"CDB loaded: {len(self.db.teams)} teams, "
-                       f"{len(self.db.cyclists)} cyclists")
-                self.db_status.setText(msg)
-                self.db_status.setStyleSheet("color: #333; font-size: 9pt;")
-                self._log(msg)
-                self.status.setText(f"Loaded: {path}")
-            else:
-                self.db_status.setText(
-                    "WARNING: DYN_team or DYN_cyclist tables missing")
-                self.db_status.setStyleSheet("color: #c00; font-size: 9pt;")
-                self._log("WARNING: DYN_team or DYN_cyclist tables missing. "
-                          "ID matching unavailable.")
+        def on_success(db_name):
+            new_names = sorted(
+                d for d in os.listdir(DATABASES_DIR)
+                if os.path.isdir(os.path.join(DATABASES_DIR, d))
+            )
+            self._db_names = new_names
+            self.db_combo.blockSignals(True)
+            self.db_combo.clear()
+            self.db_combo.addItems(self._db_names)
+            self.db_combo.blockSignals(False)
+            idx = self.db_combo.findText(db_name)
+            if idx >= 0:
+                self.db_combo.setCurrentIndex(idx)
+            self._load_selected_db()
 
-        run_async(self, task, on_success, "Loading CDB\u2026")
+        run_async(self, task, on_success, "Importing CDB database\u2026")
 
     # ==================================================================
     # Singleplayer: Logging helpers
@@ -560,13 +595,6 @@ class StartlistView(QWidget):
 
         run_async(self, task, on_success, "Fetching startlist\u2026")
 
-    def _mp_browse_output(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Save modified CDB as", "",
-            "CDB files (*.cdb);;All files (*.*)")
-        if path:
-            self.mp_out_edit.setText(path)
-
     # ==================================================================
     # Multiplayer: Logging helpers
     # ==================================================================
@@ -620,11 +648,10 @@ class StartlistView(QWidget):
                 "Please select an HTML file or enter a URL.")
             return
 
-        output = self.mp_out_edit.text().strip()
+        output, _ = QFileDialog.getSaveFileName(
+            self, "Save modified CDB as", "",
+            "CDB files (*.cdb);;All files (*.*)")
         if not output:
-            QMessageBox.warning(
-                self, "No output",
-                "Please set an output CDB file path.")
             return
 
         proceed = QMessageBox.question(
@@ -750,7 +777,6 @@ class StartlistView(QWidget):
         self.mp_cdb_edit.clear()
         self.mp_html_edit.clear()
         self.mp_url_edit.clear()
-        self.mp_out_edit.clear()
         self.mp_cdb_status.setText("No CDB loaded")
         self.mp_cdb_status.setStyleSheet("color: #888; font-size: 9pt;")
         self.mp_progress.setValue(0)

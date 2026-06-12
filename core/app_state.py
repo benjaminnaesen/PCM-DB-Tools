@@ -63,6 +63,11 @@ class AppState:
             "recents": [],
         }
 
+    def save_partial(self):
+        """Write current settings to disk without requiring window state args."""
+        with open(self.settings_file, "w") as file:
+            json.dump(self.settings, file, indent=4)
+
     def save_settings(self, window_geometry, is_maximized, lookup_mode):
         """
         Persist current application settings to JSON file.

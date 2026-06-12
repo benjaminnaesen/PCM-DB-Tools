@@ -133,7 +133,7 @@ class PCMDatabaseTools(QMainWindow):
         self.stack.addWidget(editor_page)
 
         # Page 2: Startlist
-        self.startlist_view = StartlistView()
+        self.startlist_view = StartlistView(app_state=self.state)
         self.startlist_view.go_home.connect(self.show_home)
         self.stack.addWidget(self.startlist_view)
 
